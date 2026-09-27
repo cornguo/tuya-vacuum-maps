@@ -3,6 +3,10 @@
 DOMAIN = "tuya_vacuum_maps"
 
 CONF_SERVER = "server"
+CONF_TUYA_LOCAL_ENTRY = "tuya_local_entry"
+
+# Domain of the Tuya Local integration (github.com/make-all/tuya-local)
+TUYA_LOCAL_DOMAIN = "tuya_local"
 
 CONF_SERVER_CHINA = "https://openapi.tuyacn.com"
 CONF_SERVER_WEST_AMERICA = "https://openapi.tuyaus.com"

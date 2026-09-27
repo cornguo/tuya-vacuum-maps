@@ -20,7 +20,14 @@ from homeassistant.const import (
     CONF_NAME,
 )
 
-from .const import CONF_SERVER, CONF_SERVER_WEST_AMERICA, CONF_SERVERS, DOMAIN
+from .const import (
+    CONF_SERVER,
+    CONF_SERVER_WEST_AMERICA,
+    CONF_SERVERS,
+    CONF_TUYA_LOCAL_ENTRY,
+    DOMAIN,
+    TUYA_LOCAL_DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +50,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
     MINOR_VERSION = 1
 
+    def __init__(self) -> None:
+        """Initialize the config flow."""
+        # Form defaults, pre-filled when importing from a Tuya Local device
+        self._defaults: dict[str, str] = {
+            CONF_NAME: "Vacuum Map",
+            CONF_DEVICE_ID: "",
+        }
+
     @override
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -51,6 +66,54 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         Also called when discovered but a matching discovery step is not defined.
         """
+
+        # Offer to reuse a device already set up in Tuya Local
+        if self._tuya_local_entries():
+            return self.async_show_menu(
+                step_id="user",
+                menu_options={
+                    "tuya_local": "Use a device from Tuya Local",
+                    "manual": "Enter device details manually",
+                },
+            )
+
+        return await self.async_step_manual()
+
+    def _tuya_local_entries(self) -> list[config_entries.ConfigEntry]:
+        """Return the config entries of the Tuya Local integration."""
+        return self.hass.config_entries.async_entries(TUYA_LOCAL_DOMAIN)
+
+    async def async_step_tuya_local(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Pick a Tuya Local device to pre-fill the device ID and name."""
+
+        entries = {entry.entry_id: entry for entry in self._tuya_local_entries()}
+
+        if user_input is not None:
+            entry = entries[user_input[CONF_TUYA_LOCAL_ENTRY]]
+            data = {**entry.data, **entry.options}
+            # Sub-devices behind a hub are addressed in the cloud by their own ID
+            self._defaults = {
+                CONF_NAME: f"{entry.title} Map",
+                CONF_DEVICE_ID: data.get("device_cid") or data[CONF_DEVICE_ID],
+            }
+            return await self.async_step_manual()
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(CONF_TUYA_LOCAL_ENTRY): vol.In(
+                    {entry_id: entry.title for entry_id, entry in entries.items()}
+                ),
+            }
+        )
+
+        return self.async_show_form(step_id="tuya_local", data_schema=data_schema)
+
+    async def async_step_manual(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Enter the server, credentials and device details."""
 
         # List of errors related to the form
         errors = {}
@@ -83,7 +146,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema = vol.Schema(
             {
                 # Device Name
-                vol.Required(CONF_NAME, default="Vacuum Map"): str,
+                vol.Required(CONF_NAME, default=self._defaults[CONF_NAME]): str,
                 # Server API URL
                 vol.Required(CONF_SERVER, default=CONF_SERVER_WEST_AMERICA): vol.In(
                     CONF_SERVERS
@@ -93,10 +156,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # Client Secret
                 vol.Required(CONF_CLIENT_SECRET, default=""): str,
                 # Device ID
-                vol.Required(CONF_DEVICE_ID, default=""): str,
+                vol.Required(
+                    CONF_DEVICE_ID, default=self._defaults[CONF_DEVICE_ID]
+                ): str,
             }
         )
 
         return self.async_show_form(
-            step_id="user", data_schema=data_schema, errors=errors
+            step_id="manual", data_schema=data_schema, errors=errors
         )
