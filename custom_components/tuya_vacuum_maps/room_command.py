@@ -37,6 +37,18 @@ def encode_room_clean(room_ids: list[int], clean_passes: int) -> bytes:
     )
 
 
+def commands_as_dp_values(
+    commands: list[dict], dp_ids: dict[str, int]
+) -> dict[int, str] | None:
+    """Return the commands keyed by data point number, for a local connection.
+
+    Returns None if a command's code has no known data point number.
+    """
+    if any(command["code"] not in dp_ids for command in commands):
+        return None
+    return {dp_ids[command["code"]]: command["value"] for command in commands}
+
+
 def room_clean_commands(room_ids: list[int], clean_passes: int) -> list[dict]:
     """Return the device commands that start cleaning the given rooms."""
     frame = encode_room_clean(room_ids, clean_passes)

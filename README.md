@@ -26,6 +26,7 @@ This is a fork of [jaidenlabelle/tuya-vacuum-maps](https://github.com/jaidenlabe
 - **No unique ID**: the map camera now has a unique ID and a device, so it can be managed from the UI. If the vacuum is set up in Tuya Local, the camera appears on that device's page.
 - **Entity ID got a `_2` suffix**: "Recreate entity ID" no longer adds `_2`. When the vacuum is set up in Tuya Local, the camera's entity ID is based on the vacuum's, e.g. `vacuum.robot` → `camera.robot_map`.
 - **Fewer Tuya Cloud requests**: the access token is reused until it expires instead of being fetched before every request, halving the Tuya Cloud API calls per map update (from 4 to 2), and the unused planning-path file is no longer downloaded.
+- **Tuya Local's connection used when available**: if the vacuum is set up in Tuya Local, its status and no-go zones are read from Tuya Local, and room cleaning commands are sent through it, so each map update needs one Tuya Cloud request (the map itself) and cleaning doesn't need the cloud. The map is only available from the cloud: the vacuum doesn't send it over the local network. Without Tuya Local, or if using it fails, the Tuya Cloud API is used.
 - **Slower updates while docked**: the map is fetched every 60 s while the vacuum is charging, charged, on standby or asleep, and every 10 s otherwise; starting a room clean updates it right away.
 - **No re-rendering of unchanged maps**: when the map files, no-go zones and font haven't changed, the last image is reused instead of being drawn again (about 150 ms of CPU each time). No-go zones are blended only where they are, not across the whole image.
 - **Dock drawn in the wrong place**: the dock marker was drawn at the map's origin; it's now drawn where the vacuum reports the dock, so a parked vacuum shows on it.
@@ -54,7 +55,7 @@ For vacuums whose map has rooms, the integration adds:
 
 `<vacuum>` is the Tuya Local vacuum's entity ID (e.g. `robot` for `vacuum.robot`), or the integration entry's name otherwise.
 
-The command is sent through the Tuya Cloud API. It has been tested on a Hitachi RV-X20DPA, which uses protocol version 0 of Tuya's laser robot vacuum protocol; other vacuums may use another version.
+The command is sent through Tuya Local's connection when the vacuum is set up there, and through the Tuya Cloud API otherwise. It has been tested on a Hitachi RV-X20DPA, which uses protocol version 0 of Tuya's laser robot vacuum protocol; other vacuums may use another version.
 
 ### Dashboard Card
 

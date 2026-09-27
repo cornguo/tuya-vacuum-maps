@@ -56,3 +56,14 @@ def test_invalid_commands_are_rejected(room_ids, clean_passes):
     with pytest.raises(ValueError):
         room_command.encode_room_clean(room_ids, clean_passes)
 
+
+
+def test_commands_as_local_data_point_values():
+    """Commands are keyed by data point number for Tuya Local."""
+    commands = room_command.room_clean_commands([0], 1)
+
+    assert room_command.commands_as_dp_values(
+        commands, {"command_trans": 15, "mode": 4}
+    ) == {15: "qgAEFAEBABY=", 4: "selectroom"}
+    # A vacuum without a known number for a code can't be commanded locally
+    assert room_command.commands_as_dp_values(commands, {"command_trans": 15}) is None

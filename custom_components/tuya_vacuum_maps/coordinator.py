@@ -12,9 +12,14 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .cloud import TuyaCloud
 from .const import DOMAIN
+from .local_device import LocalVacuum, dp_ids_from_specification
 from .map_render import MapData, MapRenderer
 from .polling import ACTIVE_INTERVAL, update_interval
-from .room_command import MIN_CLEAN_PASSES, room_clean_commands
+from .room_command import (
+    MIN_CLEAN_PASSES,
+    commands_as_dp_values,
+    room_clean_commands,
+)
 from .virtual_areas import VirtualAreas, update_virtual_areas
 
 # Map files the realtime map API returns that are drawn: 0 is the layout and
@@ -49,11 +54,27 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
         self._status_failed = False
         # Value of the vacuum's `status` data point, e.g. "cleaning"
         self._vacuum_status: str | None = None
+        # Whether the walls and zones have been read at least once
+        self._have_virtual_areas = False
+        # The vacuum through Tuya Local's connection, used when it has it
+        self._local = LocalVacuum(hass.data, entry.data["device_id"])
+        # Data point numbers by code, looked up once when Tuya Local has it
+        self._dp_ids: dict[str, int] | None = None
+        self._dp_ids_looked_up = False
 
     async def _async_update_data(self) -> MapData:
         """Fetch the map, running the blocking calls in the executor."""
+        # Status and zones from Tuya Local's cache, if it has the vacuum
+        local_status = None
+        if self._dp_ids and self._local.available:
+            local_status = (
+                self._local.get(self._dp_ids.get("status")),
+                self._local.get(self._dp_ids.get("command_trans")),
+            )
         try:
-            data = await self.hass.async_add_executor_job(self._fetch_map)
+            data = await self.hass.async_add_executor_job(
+                self._fetch_map, local_status
+            )
         except Exception as err:  # pylint: disable=broad-except
             raise UpdateFailed(f"Could not fetch the vacuum map: {err}") from err
         # Fetch less often while the vacuum is idle, e.g. docked
@@ -74,30 +95,64 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
         if self._cloud is not None:
             self._cloud.close()
 
-    def _fetch_map(self) -> MapData:
-        """Fetch the realtime map and render it as PNG bytes."""
+    def _fetch_map(self, local_status: tuple | None) -> MapData:
+        """Fetch the realtime map and render it as PNG bytes.
+
+        @param local_status: The status and command_trans values from Tuya
+            Local, if it has the vacuum.
+        """
         cloud = self._get_cloud()
         device_id = self.config_entry.data["device_id"]
+        if self._local.available and not self._dp_ids_looked_up:
+            self._look_up_dp_ids(cloud, device_id)
         files = {
             item["map_type"]: cloud.download(item["map_url"]).hex()
             for item in cloud.get(f"/v1.0/users/sweepers/file/{device_id}/realtime-map")
             if item["map_type"] in (LAYOUT_MAP_TYPE, PATH_MAP_TYPE)
         }
-        self._read_status(cloud, device_id)
+        self._read_status(cloud, device_id, local_status)
         return self._renderer.render(
             files.get(LAYOUT_MAP_TYPE), files.get(PATH_MAP_TYPE), self._virtual_areas
         )
 
-    def _read_status(self, cloud: TuyaCloud, device_id: str) -> None:
+    def _look_up_dp_ids(self, cloud: TuyaCloud, device_id: str) -> None:
+        """Look up the data point numbers, needed to use Tuya Local."""
+        self._dp_ids_looked_up = True
+        try:
+            self._dp_ids = dp_ids_from_specification(
+                cloud.get(f"/v1.1/devices/{device_id}/specifications")
+            )
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.warning(
+                "Could not look up the vacuum's data points, so Tuya Local's "
+                "connection isn't used: %s",
+                err,
+            )
+
+    def _read_status(
+        self, cloud: TuyaCloud, device_id: str, local_status: tuple | None
+    ) -> None:
         """Read what the vacuum is doing, and its virtual walls and zones.
 
-        Failing to read them leaves the walls and zones off the map and polls
-        often, logged once.
+        They're read from Tuya Local when it has them. The vacuum reports its
+        walls and zones only when they change, so until Tuya Local has received
+        them they're read from the Tuya Cloud API. Failing to read them leaves
+        the walls and zones off the map and polls often, logged once.
         """
+        if local_status is not None and local_status[0] is not None:
+            status, command_trans = local_status
+            self._vacuum_status = status
+            if command_trans:
+                update_virtual_areas(self._virtual_areas, command_trans)
+                self._have_virtual_areas = True
+            if self._have_virtual_areas:
+                return
+
         try:
             result = cloud.get(f"/v1.0/devices/{device_id}/status")
             status = {item["code"]: item["value"] for item in result}
             update_virtual_areas(self._virtual_areas, status.get("command_trans", ""))
+            self._have_virtual_areas = True
             self._vacuum_status = status.get("status")
         except Exception as err:  # pylint: disable=broad-except
             self._vacuum_status = None
@@ -111,12 +166,16 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
         """Make the vacuum clean the given rooms, in the given order."""
         device_id = self.config_entry.data["device_id"]
         commands = room_clean_commands(room_ids, clean_passes)
+        # Through Tuya Local's connection if possible, else the Tuya Cloud API
+        dp_values = commands_as_dp_values(commands, self._dp_ids or {})
+        sent_locally = dp_values is not None and await self._local.async_set(dp_values)
         try:
-            await self.hass.async_add_executor_job(
-                lambda: self._get_cloud().post(
-                    f"/v1.0/devices/{device_id}/commands", {"commands": commands}
+            if not sent_locally:
+                await self.hass.async_add_executor_job(
+                    lambda: self._get_cloud().post(
+                        f"/v1.0/devices/{device_id}/commands", {"commands": commands}
+                    )
                 )
-            )
         except Exception as err:  # pylint: disable=broad-except
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
