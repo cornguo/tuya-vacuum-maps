@@ -10,6 +10,7 @@ CONF_SERVER_EAST_AMERICA = "https://openapi-ueaz.tuyaus.com"
 CONF_SERVER_CENTRAL_EUROPE = "https://openapi.tuyaeu.com"
 CONF_SERVER_WEST_EUROPE = "https://openapi-weaz.tuyaeu.com"
 CONF_SERVER_INDIA = "https://openapi.tuyain.com"
+CONF_SERVER_SINGAPORE = "https://openapi-sg.iotbing.com"
 
 CONF_SERVERS = {
     CONF_SERVER_CHINA: "China",
@@ -18,4 +19,5 @@ CONF_SERVERS = {
     CONF_SERVER_CENTRAL_EUROPE: "Central Europe",
     CONF_SERVER_WEST_EUROPE: "Western Europe",
     CONF_SERVER_INDIA: "India",
+    CONF_SERVER_SINGAPORE: "Singapore",
 }
