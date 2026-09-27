@@ -6,12 +6,16 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
+from . import room_parser
 from .const import DOMAIN
 
 PLATFORMS = [Platform.CAMERA]
 
 _LOGGER = logging.getLogger(__name__)
 logging.getLogger("tuya_vacuum").setLevel(logging.DEBUG)
+
+# Patch tuya-vacuum before the config flow or camera parses any map
+room_parser.apply()
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
