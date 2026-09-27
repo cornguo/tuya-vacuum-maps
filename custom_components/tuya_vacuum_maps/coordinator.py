@@ -1,7 +1,6 @@
 """Fetch the vacuum map for all of an entry's entities."""
 
 from dataclasses import dataclass, field
-from datetime import timedelta
 import io
 import logging
 from pathlib import Path
@@ -17,11 +16,10 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .cloud import TuyaCloud
 from .const import DOMAIN
 from .map_render import render_map
+from .polling import ACTIVE_INTERVAL, update_interval
 from .room_command import MIN_CLEAN_PASSES, room_clean_commands
 from .room_labels import draw_room_labels, room_label_positions, rooms_in_map_order
 from .virtual_areas import VirtualAreas, draw_virtual_areas, update_virtual_areas
-
-UPDATE_INTERVAL = timedelta(seconds=10)
 
 # Map files the realtime map API returns that are drawn: 0 is the layout and
 # 1 the path (2 is the incremental path and 3 the planning path)
@@ -58,21 +56,26 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
             _LOGGER,
             config_entry=entry,
             name=entry.title,
-            update_interval=UPDATE_INTERVAL,
+            update_interval=ACTIVE_INTERVAL,
         )
         self._font_cache_dir = Path(hass.config.path(".cache", DOMAIN))
         # Created in the executor, as creating its HTTP client loads certificates
         self._cloud: TuyaCloud | None = None
         # Last reported virtual walls and zones
         self._virtual_areas = VirtualAreas()
-        self._virtual_areas_failed = False
+        self._status_failed = False
+        # Value of the vacuum's `status` data point, e.g. "cleaning"
+        self._vacuum_status: str | None = None
 
     async def _async_update_data(self) -> MapData:
         """Fetch the map, running the blocking calls in the executor."""
         try:
-            return await self.hass.async_add_executor_job(self._fetch_map)
+            data = await self.hass.async_add_executor_job(self._fetch_map)
         except Exception as err:  # pylint: disable=broad-except
             raise UpdateFailed(f"Could not fetch the vacuum map: {err}") from err
+        # Fetch less often while the vacuum is idle, e.g. docked
+        self.update_interval = update_interval(self._vacuum_status)
+        return data
 
     def _get_cloud(self) -> TuyaCloud:
         """Return the Tuya Cloud client. Call it in the executor."""
@@ -98,7 +101,7 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
             if item["map_type"] in (LAYOUT_MAP_TYPE, PATH_MAP_TYPE)
         }
         vacuum_map = VacuumMap(files.get(LAYOUT_MAP_TYPE), files.get(PATH_MAP_TYPE))
-        self._update_virtual_areas(cloud, device_id)
+        self._read_status(cloud, device_id)
 
         image = draw_virtual_areas(
             render_map(vacuum_map),
@@ -124,21 +127,24 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
         image.save(image_bytes, format="PNG")
         return MapData(image=image_bytes.getvalue(), rooms=rooms, map_order=map_order)
 
-    def _update_virtual_areas(self, cloud: TuyaCloud, device_id: str) -> None:
-        """Read the virtual walls and zones from the device's status.
+    def _read_status(self, cloud: TuyaCloud, device_id: str) -> None:
+        """Read what the vacuum is doing, and its virtual walls and zones.
 
-        Failing to read them only leaves them off the map, logged once.
+        Failing to read them leaves the walls and zones off the map and polls
+        often, logged once.
         """
         try:
             result = cloud.get(f"/v1.0/devices/{device_id}/status")
             status = {item["code"]: item["value"] for item in result}
             update_virtual_areas(self._virtual_areas, status.get("command_trans", ""))
+            self._vacuum_status = status.get("status")
         except Exception as err:  # pylint: disable=broad-except
-            if not self._virtual_areas_failed:
-                _LOGGER.warning("Could not read virtual walls and zones: %s", err)
-            self._virtual_areas_failed = True
+            self._vacuum_status = None
+            if not self._status_failed:
+                _LOGGER.warning("Could not read the vacuum's status: %s", err)
+            self._status_failed = True
         else:
-            self._virtual_areas_failed = False
+            self._status_failed = False
 
     async def async_clean_rooms(self, room_ids: list[int], clean_passes: int) -> None:
         """Make the vacuum clean the given rooms, in the given order."""
@@ -156,6 +162,9 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
                 translation_key="clean_failed",
                 translation_placeholders={"error": str(err)},
             ) from err
+        # Follow the vacuum as it starts, instead of waiting for an idle poll
+        self.update_interval = ACTIVE_INTERVAL
+        await self.async_request_refresh()
 
 
 @dataclass
