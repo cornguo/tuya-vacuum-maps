@@ -32,8 +32,11 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
-async def validate_input(data: dict) -> None:
-    """Validate that the user input allows us to connect."""
+def validate_input(data: dict) -> None:
+    """Validate that the user input allows us to connect.
+
+    This makes blocking network calls, so run it in the executor.
+    """
 
     vacuum = tuya_vacuum.TuyaVacuum(
         data["server"], data["client_id"], data["client_secret"], data["device_id"]
@@ -121,7 +124,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 try:
-                    await validate_input(user_input)
+                    await self.hass.async_add_executor_job(
+                        validate_input, user_input
+                    )
 
                     # Process the information
                     return self.async_create_entry(

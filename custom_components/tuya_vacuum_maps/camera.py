@@ -72,8 +72,13 @@ class VacuumMapCamera(Camera):
 
         _LOGGER.debug("Updating image")
 
-        vacuum = await self.hass.async_add_executor_job(
-            tuya_vacuum.TuyaVacuum,
+        # Fetching and rendering the map block, so run them in the executor
+        self._image = await self.hass.async_add_executor_job(self._fetch_image)
+
+    def _fetch_image(self) -> bytes:
+        """Fetch the realtime map and render it as PNG bytes."""
+
+        vacuum = tuya_vacuum.TuyaVacuum(
             self._origin,
             self._client_id,
             self._client_secret,
@@ -89,7 +94,7 @@ class VacuumMapCamera(Camera):
         # Convert the image to bytes
         img_byte_arr = io.BytesIO()
         image.save(img_byte_arr, format="PNG")
-        self._image = img_byte_arr.getvalue()
+        return img_byte_arr.getvalue()
 
     async def async_camera_image(
         self, width: int | None = None, height: int | None = None
