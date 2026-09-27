@@ -19,6 +19,7 @@ This is a fork of [jaidenlabelle/tuya-vacuum-maps](https://github.com/jaidenlabe
 - **"Unknown map type: 3" warning**: no longer logged for map types 2 (incremental path) and 3 (planning path), which Tuya documents but aren't needed for the map.
 - **Blocking calls in the event loop**: fetching and rendering the map now run outside Home Assistant's event loop, fixing the "Detected blocking call ... inside the event loop" warning.
 - **No unique ID**: the map camera now has a unique ID and a device, so it can be managed from the UI. If the vacuum is set up in Tuya Local, the camera appears on that device's page.
+- **Entity ID got a `_2` suffix**: "Recreate entity ID" no longer adds `_2`. When the vacuum is set up in Tuya Local, the camera's entity ID is based on the vacuum's, e.g. `vacuum.robot` → `camera.robot_map`.
 
 [![Add to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=cornguo&repository=tuya-vacuum-maps&category=integration)
 

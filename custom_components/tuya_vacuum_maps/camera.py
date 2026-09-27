@@ -7,13 +7,12 @@ from datetime import timedelta
 from typing import Any, Coroutine
 
 import tuya_vacuum
-from homeassistant.components.camera import Camera, ENTITY_ID_FORMAT
+from homeassistant.components.camera import DOMAIN as CAMERA_DOMAIN, Camera
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
+from homeassistant.core import HomeAssistant, split_entity_id
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.entity import generate_entity_id
 
 from .const import DOMAIN, TUYA_LOCAL_DOMAIN
 from .room_labels import draw_room_labels
@@ -32,7 +31,6 @@ async def async_setup_entry(
 
     _LOGGER.debug("Async setup entry")
     name = config_entry.title
-    entity_id = generate_entity_id(ENTITY_ID_FORMAT, name, hass=hass)
     origin = config_entry.data["server"]
     client_id = config_entry.data["client_id"]
     client_secret = config_entry.data["client_secret"]
@@ -41,10 +39,16 @@ async def async_setup_entry(
     # Show the map on the vacuum's Tuya Local device if there is one. Only link
     # to it by identifier, so its name and other details are left unchanged.
     tuya_local_identifier = (TUYA_LOCAL_DOMAIN, device_id)
-    if dr.async_get(hass).async_get_device(identifiers={tuya_local_identifier}):
+    tuya_local_device = dr.async_get(hass).async_get_device(
+        identifiers={tuya_local_identifier}
+    )
+    if tuya_local_device:
         device_info = DeviceInfo(identifiers={tuya_local_identifier})
+        entity_id = _tuya_local_entity_id(hass, tuya_local_device.id)
     else:
         device_info = DeviceInfo(identifiers={(DOMAIN, device_id)}, name=name)
+        # Let Home Assistant derive the entity ID from the name
+        entity_id = None
 
     _LOGGER.debug("Adding entities")
 
@@ -66,6 +70,18 @@ async def async_setup_entry(
     )
 
     _LOGGER.debug("Done")
+
+
+def _tuya_local_entity_id(hass: HomeAssistant, device_id: str) -> str | None:
+    """Return a camera entity ID named after the Tuya Local vacuum.
+
+    For vacuum.robot this is camera.robot_map. It's only a suggestion: Home
+    Assistant keeps an existing entity ID and resolves conflicts itself.
+    """
+    for entry in er.async_entries_for_device(er.async_get(hass), device_id):
+        if entry.platform == TUYA_LOCAL_DOMAIN and entry.domain == "vacuum":
+            return f"{CAMERA_DOMAIN}.{split_entity_id(entry.entity_id)[1]}_map"
+    return None
 
 
 class VacuumMapCamera(Camera):
