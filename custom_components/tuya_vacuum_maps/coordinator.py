@@ -6,7 +6,7 @@ import io
 import logging
 from pathlib import Path
 
-import tuya_vacuum
+from tuya_vacuum.vacuum_map import VacuumMap
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -14,7 +14,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .cloud_commands import send_commands
+from .cloud import TuyaCloud
 from .const import DOMAIN
 from .map_render import render_map
 from .room_command import MIN_CLEAN_PASSES, room_clean_commands
@@ -22,6 +22,11 @@ from .room_labels import draw_room_labels, room_label_positions, rooms_in_map_or
 from .virtual_areas import VirtualAreas, draw_virtual_areas, update_virtual_areas
 
 UPDATE_INTERVAL = timedelta(seconds=10)
+
+# Map files the realtime map API returns that are drawn: 0 is the layout and
+# 1 the path (2 is the incremental path and 3 the planning path)
+LAYOUT_MAP_TYPE = 0
+PATH_MAP_TYPE = 1
 
 # Rooms whose labels are within this fraction of the map height of each other
 # count as one row when ordering rooms as they appear on the map
@@ -56,6 +61,8 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
             update_interval=UPDATE_INTERVAL,
         )
         self._font_cache_dir = Path(hass.config.path(".cache", DOMAIN))
+        # Created in the executor, as creating its HTTP client loads certificates
+        self._cloud: TuyaCloud | None = None
         # Last reported virtual walls and zones
         self._virtual_areas = VirtualAreas()
         self._virtual_areas_failed = False
@@ -67,14 +74,31 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
         except Exception as err:  # pylint: disable=broad-except
             raise UpdateFailed(f"Could not fetch the vacuum map: {err}") from err
 
+    def _get_cloud(self) -> TuyaCloud:
+        """Return the Tuya Cloud client. Call it in the executor."""
+        if self._cloud is None:
+            data = self.config_entry.data
+            self._cloud = TuyaCloud(
+                data["server"], data["client_id"], data["client_secret"]
+            )
+        return self._cloud
+
+    def close(self) -> None:
+        """Close the Tuya Cloud client's connection. Call it in the executor."""
+        if self._cloud is not None:
+            self._cloud.close()
+
     def _fetch_map(self) -> MapData:
         """Fetch the realtime map and render it as PNG bytes."""
-        data = self.config_entry.data
-        vacuum = tuya_vacuum.TuyaVacuum(
-            data["server"], data["client_id"], data["client_secret"], data["device_id"]
-        )
-        vacuum_map = vacuum.fetch_realtime_map()
-        self._update_virtual_areas(vacuum)
+        cloud = self._get_cloud()
+        device_id = self.config_entry.data["device_id"]
+        files = {
+            item["map_type"]: cloud.download(item["map_url"]).hex()
+            for item in cloud.get(f"/v1.0/users/sweepers/file/{device_id}/realtime-map")
+            if item["map_type"] in (LAYOUT_MAP_TYPE, PATH_MAP_TYPE)
+        }
+        vacuum_map = VacuumMap(files.get(LAYOUT_MAP_TYPE), files.get(PATH_MAP_TYPE))
+        self._update_virtual_areas(cloud, device_id)
 
         image = draw_virtual_areas(
             render_map(vacuum_map),
@@ -100,16 +124,14 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
         image.save(image_bytes, format="PNG")
         return MapData(image=image_bytes.getvalue(), rooms=rooms, map_order=map_order)
 
-    def _update_virtual_areas(self, vacuum: tuya_vacuum.TuyaVacuum) -> None:
+    def _update_virtual_areas(self, cloud: TuyaCloud, device_id: str) -> None:
         """Read the virtual walls and zones from the device's status.
 
         Failing to read them only leaves them off the map, logged once.
         """
         try:
-            response = vacuum.api.request(
-                "GET", f"/v1.0/devices/{vacuum.device_id}/status"
-            )
-            status = {item["code"]: item["value"] for item in response["result"]}
+            result = cloud.get(f"/v1.0/devices/{device_id}/status")
+            status = {item["code"]: item["value"] for item in result}
             update_virtual_areas(self._virtual_areas, status.get("command_trans", ""))
         except Exception as err:  # pylint: disable=broad-except
             if not self._virtual_areas_failed:
@@ -120,15 +142,13 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
 
     async def async_clean_rooms(self, room_ids: list[int], clean_passes: int) -> None:
         """Make the vacuum clean the given rooms, in the given order."""
-        data = self.config_entry.data
+        device_id = self.config_entry.data["device_id"]
+        commands = room_clean_commands(room_ids, clean_passes)
         try:
             await self.hass.async_add_executor_job(
-                send_commands,
-                data["server"],
-                data["client_id"],
-                data["client_secret"],
-                data["device_id"],
-                room_clean_commands(room_ids, clean_passes),
+                lambda: self._get_cloud().post(
+                    f"/v1.0/devices/{device_id}/commands", {"commands": commands}
+                )
             )
         except Exception as err:  # pylint: disable=broad-except
             raise HomeAssistantError(

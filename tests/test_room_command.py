@@ -19,7 +19,6 @@ def _load(name: str):
 
 
 room_command = _load("room_command")
-cloud_commands = _load("cloud_commands")
 
 
 @pytest.mark.parametrize(
@@ -57,20 +56,3 @@ def test_invalid_commands_are_rejected(room_ids, clean_passes):
     with pytest.raises(ValueError):
         room_command.encode_room_clean(room_ids, clean_passes)
 
-
-def test_signature_covers_the_body():
-    """Commands are signed with the hash of their body, unlike GET requests."""
-    args = ("id", "secret", "token", "1700000000000", "nonce", "POST")
-
-    assert cloud_commands.sign(*args, '{"a":1}', "/p") != cloud_commands.sign(
-        *args, '{"a":2}', "/p"
-    )
-    # Tuya's documented string to sign, with the SHA-256 of the body
-    assert cloud_commands.sign(*args, "", "/p") == cloud_commands.hmac.new(
-        b"secret",
-        (
-            "idtoken1700000000000noncePOST\n"
-            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n\n/p"
-        ).encode(),
-        "sha256",
-    ).hexdigest().upper()

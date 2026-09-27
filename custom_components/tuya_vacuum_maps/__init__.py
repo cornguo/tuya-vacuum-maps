@@ -72,4 +72,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # This is called when an entry/configured device is to be removed.
     # The class needs to unload itself and remove callbacks.
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        await hass.async_add_executor_job(entry.runtime_data.coordinator.close)
+    return unloaded
