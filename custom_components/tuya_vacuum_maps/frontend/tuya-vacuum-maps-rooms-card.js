@@ -248,14 +248,17 @@ TuyaVacuumMapsRoomsCard.styles = `
   .error:empty { display: none; }
 `;
 
-customElements.define("tuya-vacuum-maps-rooms-card", TuyaVacuumMapsRoomsCard);
+// The card may be loaded twice, e.g. as a dashboard resource and with the page
+if (!customElements.get("tuya-vacuum-maps-rooms-card")) {
+  customElements.define("tuya-vacuum-maps-rooms-card", TuyaVacuumMapsRoomsCard);
 
-// Shows in the browser console that the card was loaded
-console.info("tuya-vacuum-maps-rooms-card loaded");
+  // Shows in the browser console that the card was loaded
+  console.info("tuya-vacuum-maps-rooms-card loaded");
 
-window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "tuya-vacuum-maps-rooms-card",
-  name: "Tuya Vacuum Maps Rooms",
-  description: "Pick rooms, set the cleaning passes and start cleaning.",
-});
+  window.customCards = window.customCards || [];
+  window.customCards.push({
+    type: "tuya-vacuum-maps-rooms-card",
+    name: "Tuya Vacuum Maps Rooms",
+    description: "Pick rooms, set the cleaning passes and start cleaning.",
+  });
+}

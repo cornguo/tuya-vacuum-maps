@@ -29,6 +29,7 @@ This is a fork of [jaidenlabelle/tuya-vacuum-maps](https://github.com/jaidenlabe
 - **Tuya Local's connection used when available**: if the vacuum is set up in Tuya Local, its status and no-go zones are read from Tuya Local, and room cleaning commands are sent through it, so each map update needs one Tuya Cloud request (the map itself) and cleaning doesn't need the cloud. The map is only available from the cloud: the vacuum doesn't send it over the local network. Without Tuya Local, or if using it fails, the Tuya Cloud API is used.
 - **Slower updates while docked**: the map is fetched every 60 s while the vacuum is charging, charged, on standby or asleep, and every 10 s otherwise; starting a room clean updates it right away.
 - **No re-rendering of unchanged maps**: when the map files, no-go zones and font haven't changed, the last image is reused instead of being drawn again (about 150 ms of CPU each time). No-go zones are blended only where they are, not across the whole image.
+- **Rooms card showed a configuration error**: the card was only added to the Home Assistant page, so a browser or app showing a cached page from before it was installed couldn't find it ("Custom element doesn't exist"). It's now added to the dashboard resources, which come with the dashboard.
 - **Rooms card stopped working with the map**: when a map update failed, the room switches, passes slider and clean button became unavailable with the camera. They now keep working with the last known rooms; only the camera and current room sensor show the failed update.
 - **Map stopped updating**: the vacuum only uploads its map to the Tuya Cloud when asked, e.g. by its app while showing the map, so the map froze with the app closed. After each update the integration now asks it to upload a fresh map for the next one (through Tuya Local's connection when available).
 - **Dock drawn in the wrong place**: the dock marker was drawn at the map's origin; it's now drawn where the vacuum reports the dock, so a parked vacuum shows on it.
@@ -67,6 +68,15 @@ The integration adds a **Tuya Vacuum Maps Rooms** card to the dashboard card pic
 type: custom:tuya-vacuum-maps-rooms-card
 entity: button.robot_clean_rooms  # optional with a single vacuum
 title: Clean rooms                # optional
+```
+
+The card is added to the dashboard resources (Settings → Dashboards → Resources) automatically. If your resources are defined in YAML, add it there yourself:
+
+```yaml
+lovelace:
+  resources:
+    - url: /tuya_vacuum_maps/tuya-vacuum-maps-rooms-card.js
+      type: module
 ```
 
 ## Compatibility List

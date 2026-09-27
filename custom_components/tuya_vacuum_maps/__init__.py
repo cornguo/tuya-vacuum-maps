@@ -4,7 +4,6 @@ import hashlib
 import logging
 from pathlib import Path
 
-from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -13,6 +12,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
 from . import map_type_filter, path_style, room_parser
+from .card_resource import async_register_card, async_unregister_card
 from .const import DOMAIN
 from .coordinator import VacuumMapCoordinator, VacuumMapRuntime
 from .entity import entity_id_prefix, map_device
@@ -41,7 +41,7 @@ path_style.apply()
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Serve the dashboard card and load it on every dashboard."""
+    """Serve the dashboard card and load it on dashboards."""
     card_hash = await hass.async_add_executor_job(
         lambda: hashlib.sha256(CARD_FILE.read_bytes()).hexdigest()[:8]
     )
@@ -49,7 +49,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         [StaticPathConfig(CARD_URL, str(CARD_FILE), True)]
     )
     # The hash makes browsers load a changed card instead of a cached one
-    add_extra_js_url(hass, f"{CARD_URL}?v={card_hash}")
+    await async_register_card(hass, CARD_URL, card_hash)
     return True
 
 
@@ -82,3 +82,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unloaded:
         await hass.async_add_executor_job(entry.runtime_data.coordinator.close)
     return unloaded
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove the rooms card resource with the last entry."""
+    if not any(
+        other.entry_id != entry.entry_id
+        for other in hass.config_entries.async_entries(DOMAIN)
+    ):
+        await async_unregister_card(hass, CARD_URL)
