@@ -37,6 +37,11 @@ WALLS = _frame(bytes.fromhex("1301fc7b0708fd430640"))
 ZONES = _frame(
     bytes([0x1B, 1, 0, 4]) + _points((100, 200), (300, 200), (300, 400), (100, 400))
 )
+# A zone with negative stored values, which Tuya's decodeVirtualArea0x1b in
+# @ray-js/robot-protocol decodes to (-1.4, 2), (3, 2), (3, -4) and (-1.4, -4)
+NEGATIVE_ZONES = _frame(
+    bytes([0x1B, 1, 0, 4]) + _points((-15, -21), (30, -21), (30, 40), (-15, 40))
+)
 
 
 def _value(*frames: bytes) -> str:
@@ -52,8 +57,18 @@ def test_walls_and_zones_are_read_from_their_frames():
         areas, _value(_frame(bytes([0x17])), WALLS, ZONES)
     )
 
-    assert areas.walls == [((-90.1, -180.0), (-70.1, -160.0))]
+    # As decodeVirtualWall0x13 decodes it: the wall's end points, minus the origin
+    assert areas.walls == [((-90.0, -180.0), (-70.0, -160.0))]
     assert areas.zones == [[(10.0, -20.0), (30.0, -20.0), (30.0, -40.0), (10.0, -40.0)]]
+
+
+def test_negative_values_are_decoded_like_tuya():
+    """Negative stored values are one's complement, as in Tuya's decoder."""
+    areas = virtual_areas.VirtualAreas()
+
+    virtual_areas.update_virtual_areas(areas, _value(NEGATIVE_ZONES))
+
+    assert areas.zones == [[(-1.4, 2.0), (3.0, 2.0), (3.0, -4.0), (-1.4, -4.0)]]
 
 
 def test_areas_not_reported_are_kept():

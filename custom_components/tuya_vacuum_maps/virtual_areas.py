@@ -8,9 +8,10 @@ laser robot vacuum protocol (version 0):
 - 0x13, virtual walls: <count>, then per wall its two end points
 - 0x1b, zones: <count>, then per zone <type> <corner count> and its corners
 
-Each point is a signed 16-bit x and y relative to the map origin, times 10,
-with y pointing up (see encodeVirtualWall0x12 in Tuya's @ray-js/robot-protocol
-package).
+Each point is a 16-bit x and y relative to the map origin, times 10, with y
+pointing up. Negative values are stored bit-inverted (one's complement), so -90
+is -901 (see encodeVirtualWall0x12 and decodeVirtualArea0x1b in Tuya's
+@ray-js/robot-protocol package).
 """
 
 import base64
@@ -53,9 +54,14 @@ def parse_frames(value: str) -> dict[int, bytes]:
     return frames
 
 
+def _coordinate(raw: int) -> float:
+    """Return a coordinate stored times 10, negative values bit-inverted."""
+    return (raw + 1 if raw < 0 else raw) / 10
+
+
 def _point(data: bytes, offset: int) -> Point:
     x, y = struct.unpack_from(">hh", data, offset)
-    return x / 10, -y / 10
+    return _coordinate(x), -_coordinate(y)
 
 
 def decode_walls(data: bytes) -> list[tuple[Point, Point]]:
