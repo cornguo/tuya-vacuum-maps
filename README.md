@@ -15,6 +15,7 @@ This is a fork of [jaidenlabelle/tuya-vacuum-maps](https://github.com/jaidenlabe
 - **Thinner cleaning path**: the path is drawn 3 px wide instead of 8, so it no longer covers the room colours and labels.
 - **Room cleaning**: a switch per room, a clean passes slider (1–3) and a "Clean selected rooms" button start cleaning the chosen rooms, in the order they were selected. See [Cleaning Rooms](#cleaning-rooms).
 - **Rooms dashboard card**: a built-in card with a toggle per room, laid out as the rooms appear on the map and numbered in cleaning order, plus the passes slider and clean button. See [Dashboard Card](#dashboard-card).
+- **Translations**: the setup flow, entity names, error messages and the rooms card are in English and Traditional Chinese (繁體中文).
 
 **Fixes**
 - **Maps with several rooms failed to render**: the room parser in `tuya-vacuum` didn't skip each room's outline points, so every room after the first was read from the wrong place (`UnicodeDecodeError`).

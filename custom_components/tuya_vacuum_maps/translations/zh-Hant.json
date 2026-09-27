@@ -1,0 +1,65 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tuya Vacuum Maps",
+        "description": "這台掃地機器人可能已經在 Tuya Local 中設定。",
+        "menu_options": {
+          "tuya_local": "使用 Tuya Local 中的裝置",
+          "manual": "手動輸入裝置資料"
+        }
+      },
+      "tuya_local": {
+        "title": "選擇 Tuya Local 裝置",
+        "data": {
+          "tuya_local_entry": "裝置"
+        },
+        "data_description": {
+          "tuya_local_entry": "下一步會自動填入它的裝置 ID 與名稱。"
+        }
+      },
+      "manual": {
+        "title": "Tuya 雲端專案",
+        "description": "請使用 Tuya 開發者平台雲端專案的 Client ID 與 Client Secret，並訂閱 Robot Vacuum Open APIs 服務。",
+        "data": {
+          "name": "名稱",
+          "server": "資料中心",
+          "client_id": "Client ID",
+          "client_secret": "Client Secret",
+          "device_id": "裝置 ID"
+        },
+        "data_description": {
+          "name": "地圖攝影機的名稱。",
+          "server": "Tuya 雲端專案所在的資料中心。"
+        }
+      }
+    },
+    "error": {
+      "cross_region": "此資料中心與 Tuya 雲端專案的資料中心不符。",
+      "invalid_client_id": "Client ID 無效。",
+      "invalid_client_secret": "Client Secret 無效。",
+      "invalid_device_id": "裝置 ID 無效，或裝置尚未連結到此雲端專案。",
+      "unknown": "發生未預期的錯誤，請查看 Home Assistant 日誌。"
+    }
+  },
+  "entity": {
+    "button": {
+      "clean_rooms": {
+        "name": "清掃已選房間"
+      }
+    },
+    "number": {
+      "clean_passes": {
+        "name": "清掃次數"
+      }
+    }
+  },
+  "exceptions": {
+    "no_rooms_selected": {
+      "message": "請至少選擇一個要清掃的房間。"
+    },
+    "clean_failed": {
+      "message": "無法開始清掃：{error}"
+    }
+  }
+}

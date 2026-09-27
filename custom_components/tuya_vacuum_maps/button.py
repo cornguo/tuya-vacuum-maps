@@ -6,6 +6,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import DOMAIN
 from .coordinator import VacuumMapRuntime
 from .entity import VacuumMapEntity
 
@@ -23,7 +24,7 @@ class CleanRoomsButton(VacuumMapEntity, ButtonEntity):
     """Clean the rooms selected with the room switches."""
 
     _attr_has_entity_name = True
-    _attr_name = "Clean selected rooms"
+    _attr_translation_key = "clean_rooms"
     _attr_icon = "mdi:robot-vacuum"
 
     def __init__(self, runtime: VacuumMapRuntime) -> None:
@@ -37,5 +38,7 @@ class CleanRoomsButton(VacuumMapEntity, ButtonEntity):
             room_id for room_id in self._runtime.selected_rooms if room_id in rooms
         ]
         if not room_ids:
-            raise HomeAssistantError("Select at least one room to clean")
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="no_rooms_selected"
+            )
         await self.coordinator.async_clean_rooms(room_ids, self._runtime.clean_passes)

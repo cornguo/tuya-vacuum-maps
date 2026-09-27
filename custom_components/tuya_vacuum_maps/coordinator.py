@@ -102,7 +102,11 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
                 room_clean_commands(room_ids, clean_passes),
             )
         except Exception as err:  # pylint: disable=broad-except
-            raise HomeAssistantError(f"Could not start cleaning: {err}") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="clean_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err
 
 
 @dataclass

@@ -8,6 +8,42 @@
 
 const PLATFORM = "tuya_vacuum_maps";
 
+// Card texts by language; {count} is replaced with a number
+const TRANSLATIONS = {
+  en: {
+    title: "Clean rooms",
+    passes: "Passes",
+    clean_one: "Clean {count} room",
+    clean_other: "Clean {count} rooms",
+    select_rooms: "Select rooms to clean",
+    no_button: "No Tuya Vacuum Maps clean button found. Set `entity` to one.",
+  },
+  "zh-Hant": {
+    title: "清掃房間",
+    passes: "清掃次數",
+    clean_one: "清掃 {count} 個房間",
+    clean_other: "清掃 {count} 個房間",
+    select_rooms: "請選擇要清掃的房間",
+    no_button: "找不到 Tuya Vacuum Maps 的清掃按鈕，請將 `entity` 設為該按鈕。",
+  },
+};
+
+// Traditional Chinese for Home Assistant's zh-Hant and zh-TW style codes,
+// English otherwise
+function language(hass) {
+  const code = (hass.locale?.language || hass.language || "en").toLowerCase();
+  return ["zh-hant", "zh-tw", "zh-hk", "zh-mo"].some((prefix) =>
+    code.startsWith(prefix)
+  )
+    ? "zh-Hant"
+    : "en";
+}
+
+function translate(hass, key, count) {
+  const text = TRANSLATIONS[language(hass)][key] ?? TRANSLATIONS.en[key];
+  return count === undefined ? text : text.replace("{count}", count);
+}
+
 // Entities of this integration in a domain, optionally on one device
 function integrationEntities(hass, domain, deviceId) {
   return Object.values(hass.entities || {}).filter(
@@ -29,7 +65,8 @@ class TuyaVacuumMapsRoomsCard extends HTMLElement {
     const parts = this._findEntities();
     // Only re-render when something shown changed, so a slider being
     // dragged isn't replaced by every unrelated state update
-    const key = JSON.stringify(
+    const key = JSON.stringify([
+      language(hass),
       parts && [
         parts.button,
         parts.passes && hass.states[parts.passes]?.state,
@@ -38,8 +75,8 @@ class TuyaVacuumMapsRoomsCard extends HTMLElement {
           hass.states[id]?.state,
           hass.states[id]?.attributes,
         ]),
-      ]
-    );
+      ],
+    ]);
     if (key !== this._renderKey) {
       this._renderKey = key;
       this._render(parts);
@@ -87,15 +124,14 @@ class TuyaVacuumMapsRoomsCard extends HTMLElement {
     root.innerHTML = `<style>${TuyaVacuumMapsRoomsCard.styles}</style>`;
 
     const card = document.createElement("ha-card");
-    card.header = this._config.title || "Clean rooms";
+    card.header = this._config.title || translate(hass, "title");
     root.appendChild(card);
     const content = document.createElement("div");
     content.className = "content";
     card.appendChild(content);
 
     if (!parts) {
-      content.textContent =
-        "No Tuya Vacuum Maps clean button found. Set `entity` to one.";
+      content.textContent = translate(hass, "no_button");
       return;
     }
 
@@ -128,7 +164,7 @@ class TuyaVacuumMapsRoomsCard extends HTMLElement {
       const row = document.createElement("label");
       row.className = "passes";
       const label = document.createElement("span");
-      label.textContent = "Passes";
+      label.textContent = translate(hass, "passes");
       const slider = document.createElement("input");
       slider.type = "range";
       slider.min = passes.attributes.min;
@@ -157,8 +193,12 @@ class TuyaVacuumMapsRoomsCard extends HTMLElement {
     clean.className = "clean";
     clean.disabled = selected.length === 0;
     clean.textContent = selected.length
-      ? `Clean ${selected.length} room${selected.length > 1 ? "s" : ""}`
-      : "Select rooms to clean";
+      ? translate(
+          hass,
+          selected.length === 1 ? "clean_one" : "clean_other",
+          selected.length
+        )
+      : translate(hass, "select_rooms");
     clean.addEventListener("click", () =>
       this._call("button", "press", { entity_id: parts.button })
     );

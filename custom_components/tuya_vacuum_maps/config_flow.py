@@ -73,11 +73,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Offer to reuse a device already set up in Tuya Local
         if self._tuya_local_entries():
             return self.async_show_menu(
-                step_id="user",
-                menu_options={
-                    "tuya_local": "Use a device from Tuya Local",
-                    "manual": "Enter device details manually",
-                },
+                step_id="user", menu_options=["tuya_local", "manual"]
             )
 
         return await self.async_step_manual()
@@ -135,18 +131,17 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 except Exception as err:
                     _LOGGER.error("Error occurred while validating: %s", err)
                     raise err
+            # Error keys are translated in translations/<language>.json
             except CrossRegionAccessError:
-                errors[CONF_SERVER] = (
-                    "Cross region access is not allowed, data center mismatch."
-                )
+                errors[CONF_SERVER] = "cross_region"
             except InvalidClientIDError:
-                errors[CONF_CLIENT_ID] = "Invalid Client ID."
+                errors[CONF_CLIENT_ID] = "invalid_client_id"
             except InvalidClientSecretError:
-                errors[CONF_CLIENT_SECRET] = "Invalid Client Secret."
+                errors[CONF_CLIENT_SECRET] = "invalid_client_secret"
             except InvalidDeviceIDError:
-                errors[CONF_DEVICE_ID] = "Invalid Device ID."
+                errors[CONF_DEVICE_ID] = "invalid_device_id"
             except Exception:  # pylint: disable=broad-except
-                errors["base"] = "Unknown error occurred."
+                errors["base"] = "unknown"
         # Define the schema of the form
         data_schema = vol.Schema(
             {

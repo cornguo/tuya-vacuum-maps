@@ -1,0 +1,65 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tuya Vacuum Maps",
+        "description": "This vacuum may already be set up in Tuya Local.",
+        "menu_options": {
+          "tuya_local": "Use a device from Tuya Local",
+          "manual": "Enter device details manually"
+        }
+      },
+      "tuya_local": {
+        "title": "Choose a Tuya Local device",
+        "data": {
+          "tuya_local_entry": "Device"
+        },
+        "data_description": {
+          "tuya_local_entry": "Its device ID and name are filled in on the next step."
+        }
+      },
+      "manual": {
+        "title": "Tuya Cloud project",
+        "description": "Use the Client ID and Client Secret of your Tuya Developer Platform cloud project, with the Robot Vacuum Open APIs service subscribed.",
+        "data": {
+          "name": "Name",
+          "server": "Data center",
+          "client_id": "Client ID",
+          "client_secret": "Client Secret",
+          "device_id": "Device ID"
+        },
+        "data_description": {
+          "name": "Name of the map camera.",
+          "server": "The data center of your Tuya cloud project."
+        }
+      }
+    },
+    "error": {
+      "cross_region": "This data center doesn't match your Tuya cloud project's.",
+      "invalid_client_id": "Invalid Client ID.",
+      "invalid_client_secret": "Invalid Client Secret.",
+      "invalid_device_id": "Invalid Device ID, or the device isn't linked to this cloud project.",
+      "unknown": "Unexpected error. Check the Home Assistant log for details."
+    }
+  },
+  "entity": {
+    "button": {
+      "clean_rooms": {
+        "name": "Clean selected rooms"
+      }
+    },
+    "number": {
+      "clean_passes": {
+        "name": "Clean passes"
+      }
+    }
+  },
+  "exceptions": {
+    "no_rooms_selected": {
+      "message": "Select at least one room to clean."
+    },
+    "clean_failed": {
+      "message": "Could not start cleaning: {error}"
+    }
+  }
+}
