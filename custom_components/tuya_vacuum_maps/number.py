@@ -27,6 +27,7 @@ class CleanPassesNumber(VacuumMapEntity, RestoreNumber):
     """How many times each selected room is cleaned."""
 
     _attr_has_entity_name = True
+    _available_with_last_map = True
     _attr_translation_key = "clean_passes"
     _attr_icon = "mdi:repeat"
     _attr_mode = NumberMode.SLIDER

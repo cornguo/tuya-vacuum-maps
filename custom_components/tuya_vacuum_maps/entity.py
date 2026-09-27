@@ -42,6 +42,11 @@ def entity_id_prefix(entry: ConfigEntry, tuya_local_object_id: str | None) -> st
 class VacuumMapEntity(CoordinatorEntity[VacuumMapCoordinator]):
     """An entity of a Tuya Vacuum Maps entry."""
 
+    # Whether the entity stays available when a map update fails, using the
+    # last map. Rooms rarely change, and room commands may not need the cloud
+    # (Tuya Local), so room selection and cleaning keep working.
+    _available_with_last_map = False
+
     def __init__(self, runtime: VacuumMapRuntime, platform: str, key: str) -> None:
         """Initialize the entity.
 
@@ -53,3 +58,10 @@ class VacuumMapEntity(CoordinatorEntity[VacuumMapCoordinator]):
         self._attr_device_info = runtime.device_info
         # Only a suggestion: Home Assistant keeps an existing entity id
         self.entity_id = f"{platform}.{runtime.entity_id_prefix}_{key}"
+
+    @property
+    def available(self) -> bool:
+        """Return whether the entity can be used."""
+        if self._available_with_last_map:
+            return self.coordinator.data is not None
+        return super().available

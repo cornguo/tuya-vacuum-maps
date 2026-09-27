@@ -43,6 +43,7 @@ class RoomSwitch(VacuumMapEntity, SwitchEntity, RestoreEntity):
     """
 
     _attr_has_entity_name = True
+    _available_with_last_map = True
     _attr_icon = "mdi:floor-plan"
 
     def __init__(self, runtime: VacuumMapRuntime, room_id: int) -> None:

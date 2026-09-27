@@ -24,6 +24,7 @@ class CleanRoomsButton(VacuumMapEntity, ButtonEntity):
     """Clean the rooms selected with the room switches."""
 
     _attr_has_entity_name = True
+    _available_with_last_map = True
     _attr_translation_key = "clean_rooms"
     _attr_icon = "mdi:robot-vacuum"
 
