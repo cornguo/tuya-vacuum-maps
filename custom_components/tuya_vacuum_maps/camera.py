@@ -2,6 +2,7 @@
 
 import io
 import logging
+from pathlib import Path
 from datetime import timedelta
 from typing import Any, Coroutine
 
@@ -130,7 +131,11 @@ class VacuumMapCamera(Camera):
         # Get the image
         image = vacuum_map.to_image()
         if vacuum_map.layout.version == 1:
-            draw_room_labels(image, vacuum_map.layout)
+            draw_room_labels(
+                image,
+                vacuum_map.layout,
+                Path(self.hass.config.path(".cache", DOMAIN)),
+            )
 
         # Convert the image to bytes
         img_byte_arr = io.BytesIO()

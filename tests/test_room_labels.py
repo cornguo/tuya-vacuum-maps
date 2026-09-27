@@ -75,10 +75,34 @@ def test_label_text_shows_name_and_id():
     assert room_labels.label_text(2, "") == "(ID: 2)"
 
 
-def test_labels_are_drawn_on_the_scaled_image():
-    """Drawing labels changes the image without failing."""
+def test_labels_are_drawn_on_the_scaled_image(tmp_path):
+    """Drawing ASCII labels changes the image without downloading a font."""
     image = Image.new("RGB", (7 * 8, 6 * 8), "blue")
 
-    room_labels.draw_room_labels(image, _layout())
+    room_labels.draw_room_labels(image, _layout(), tmp_path)
 
     assert image.getcolors() != [(7 * 8 * 6 * 8, (0, 0, 255))]
+    assert not list(tmp_path.iterdir())
+
+
+def test_font_with_wrong_checksum_is_not_used(tmp_path, monkeypatch):
+    """A download that doesn't match the pinned checksum is discarded."""
+    monkeypatch.setattr(room_labels, "_font_failed_at", None)
+    monkeypatch.setattr(
+        room_labels.httpx,
+        "get",
+        lambda *args, **kwargs: room_labels.httpx.Response(
+            200, content=b"not a font", request=room_labels.httpx.Request("GET", "x")
+        ),
+    )
+
+    assert room_labels.ensure_font(tmp_path) is None
+    assert not list(tmp_path.iterdir())
+
+
+def test_cached_font_is_used_without_download(tmp_path, monkeypatch):
+    """An already downloaded font is returned without a request."""
+    (tmp_path / room_labels.FONT_FILE_NAME).write_bytes(b"font")
+    monkeypatch.setattr(room_labels.httpx, "get", None)
+
+    assert room_labels.ensure_font(tmp_path) == tmp_path / room_labels.FONT_FILE_NAME

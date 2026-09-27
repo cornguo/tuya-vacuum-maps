@@ -1,12 +1,36 @@
 """Draw room names on a rendered vacuum map."""
 
+import hashlib
+import logging
+import os
+import time
+from pathlib import Path
+
+import httpx
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from tuya_vacuum.vacuum_map_layout import VacuumMapLayout
 
+_LOGGER = logging.getLogger(__name__)
+
 # Font size of a label, in layout pixels
 LABEL_SIZE = 4
+
+# Pillow's default font has no CJK glyphs, so room names outside ASCII are drawn
+# with Noto Sans TC (SIL Open Font License), downloaded once on first use.
+FONT_URL = (
+    "https://cdn.jsdelivr.net/gh/notofonts/noto-cjk"
+    "@165c01b46ea533872e002e0785ff17e44f6d97d8"
+    "/Sans/SubsetOTF/TC/NotoSansTC-Medium.otf"
+)
+FONT_SHA256 = "bf206dca0975779bac71cb49a037a364156ca98a0c431b1b7d6b29fb8952ac7e"
+FONT_FILE_NAME = "NotoSansTC-Medium.otf"
+
+# Seconds to wait before retrying a failed font download
+FONT_RETRY_INTERVAL = 3600
+
+_font_failed_at: float | None = None
 
 
 def room_label_positions(
@@ -40,13 +64,53 @@ def label_text(room_id: int, name: str) -> str:
     return f"{name}\n(ID: {room_id})" if name else f"(ID: {room_id})"
 
 
-def draw_room_labels(image: Image.Image, layout: VacuumMapLayout) -> None:
+def ensure_font(cache_dir: Path) -> Path | None:
+    """Return the path of the CJK font, downloading it if needed.
+
+    Returns None if the font isn't available, e.g. while offline; the download
+    is then retried after FONT_RETRY_INTERVAL.
+    """
+    global _font_failed_at  # pylint: disable=global-statement
+
+    path = cache_dir / FONT_FILE_NAME
+    if path.exists():
+        return path
+    if _font_failed_at and time.monotonic() - _font_failed_at < FONT_RETRY_INTERVAL:
+        return None
+
+    try:
+        _LOGGER.info("Downloading font for room names from %s", FONT_URL)
+        response = httpx.get(FONT_URL, follow_redirects=True, timeout=60)
+        response.raise_for_status()
+        if hashlib.sha256(response.content).hexdigest() != FONT_SHA256:
+            raise ValueError("Downloaded font doesn't match its expected checksum")
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        partial_path = path.with_suffix(".part")
+        partial_path.write_bytes(response.content)
+        os.replace(partial_path, path)
+    except (httpx.HTTPError, OSError, ValueError) as err:
+        _LOGGER.warning("Could not download font for room names: %s", err)
+        _font_failed_at = time.monotonic()
+        return None
+
+    return path
+
+
+def draw_room_labels(
+    image: Image.Image, layout: VacuumMapLayout, font_cache_dir: Path
+) -> None:
     """Draw each room's name and id on the image rendered from the layout."""
     labels = room_label_positions(layout)
     scale = image.width / layout.width
     size = LABEL_SIZE * scale
 
-    font = ImageFont.load_default(size=size)
+    font_path = None
+    if any(not name.isascii() for _, name, _ in labels):
+        font_path = ensure_font(font_cache_dir)
+    if font_path:
+        font = ImageFont.truetype(str(font_path), size)
+    else:
+        font = ImageFont.load_default(size=size)
 
     draw = ImageDraw.Draw(image)
     stroke_width = max(1, round(scale / 3))
