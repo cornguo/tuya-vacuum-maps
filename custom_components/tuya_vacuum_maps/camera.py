@@ -15,6 +15,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import generate_entity_id
 
 from .const import DOMAIN, TUYA_LOCAL_DOMAIN
+from .room_labels import draw_room_labels
 
 SCAN_INTERVAL = timedelta(seconds=10)
 
@@ -128,6 +129,8 @@ class VacuumMapCamera(Camera):
 
         # Get the image
         image = vacuum_map.to_image()
+        if vacuum_map.layout.version == 1:
+            draw_room_labels(image, vacuum_map.layout)
 
         # Convert the image to bytes
         img_byte_arr = io.BytesIO()
