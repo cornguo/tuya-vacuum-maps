@@ -53,7 +53,7 @@ For vacuums whose map has rooms, the integration adds:
 
 `<vacuum>` is the Tuya Local vacuum's entity ID (e.g. `robot` for `vacuum.robot`), or the integration entry's name otherwise.
 
-The command is sent through the Tuya Cloud API. It has been tested on a Hitachi RV-X20DP, which uses protocol version 0 of Tuya's laser robot vacuum protocol; other vacuums may use another version.
+The command is sent through the Tuya Cloud API. It has been tested on a Hitachi RV-X20DPA, which uses protocol version 0 of Tuya's laser robot vacuum protocol; other vacuums may use another version.
 
 ### Dashboard Card
 
@@ -77,6 +77,7 @@ This is a list of tested devices.
 | Lebluelu SL60D | Supported |
 | Lebluelu SL68 | Supported |
 | Neatsvor X600 Pro | Supported |
+| Hitachi RV-X20DPA | Supported |
 
 ## Development Environment
 

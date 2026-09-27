@@ -25,7 +25,7 @@ room_command = _load("room_command")
     ("room_ids", "clean_passes", "frame"),
     [
         # Output of encodeRoomClean0x14 in Tuya's @ray-js/robot-protocol with
-        # version "0"; the first was also accepted by a Hitachi RV-X20DP
+        # version "0"; the first was also accepted by a Hitachi RV-X20DPA
         ([0], 1, "aa00041401010016"),
         ([0, 2], 1, "aa0005140102000219"),
         # Rooms stay in the given order
