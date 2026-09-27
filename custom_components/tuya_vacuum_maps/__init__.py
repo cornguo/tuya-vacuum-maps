@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
-from . import map_type_filter, room_parser
+from . import map_type_filter, path_style, room_parser
 from .const import DOMAIN
 
 PLATFORMS = [Platform.CAMERA]
@@ -17,6 +17,7 @@ map_type_filter.apply()
 
 # Patch tuya-vacuum before the config flow or camera parses any map
 room_parser.apply()
+path_style.apply()
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
