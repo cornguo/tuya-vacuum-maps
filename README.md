@@ -14,6 +14,7 @@ This is a fork of [jaidenlabelle/tuya-vacuum-maps](https://github.com/jaidenlabe
 - **Room labels**: each room is labelled on the map with its name and ID, e.g. `客廳 (ID: 0)`. Non-ASCII names (such as Chinese) are drawn with Noto Sans TC, downloaded once on first use into `config/.cache/tuya_vacuum_maps/`.
 - **Thinner cleaning path**: the path is drawn 3 px wide instead of 8, so it no longer covers the room colours and labels.
 - **Room cleaning**: a switch per room, a clean passes slider (1–3) and a "Clean selected rooms" button start cleaning the chosen rooms, in the order they were selected. See [Cleaning Rooms](#cleaning-rooms).
+- **Rooms dashboard card**: a built-in card with a toggle per room, laid out as the rooms appear on the map and numbered in cleaning order, plus the passes slider and clean button. See [Dashboard Card](#dashboard-card).
 
 **Fixes**
 - **Maps with several rooms failed to render**: the room parser in `tuya-vacuum` didn't skip each room's outline points, so every room after the first was read from the wrong place (`UnicodeDecodeError`).
@@ -47,6 +48,16 @@ For vacuums whose map has rooms, the integration adds:
 `<vacuum>` is the Tuya Local vacuum's entity ID (e.g. `robot` for `vacuum.robot`), or the integration entry's name otherwise.
 
 The command is sent through the Tuya Cloud API. It has been tested on a Hitachi RV-X20DP, which uses protocol version 0 of Tuya's laser robot vacuum protocol; other vacuums may use another version.
+
+### Dashboard Card
+
+The integration adds a **Tuya Vacuum Maps Rooms** card to the dashboard card picker. It shows a toggle per room with its place in the cleaning order, the passes slider and the clean button, and picks up new rooms by itself:
+
+```yaml
+type: custom:tuya-vacuum-maps-rooms-card
+entity: button.robot_clean_rooms  # optional with a single vacuum
+title: Clean rooms                # optional
+```
 
 ## Compatibility List
 

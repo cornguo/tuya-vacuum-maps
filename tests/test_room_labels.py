@@ -106,3 +106,15 @@ def test_cached_font_is_used_without_download(tmp_path, monkeypatch):
     monkeypatch.setattr(room_labels.httpx, "get", None)
 
     assert room_labels.ensure_font(tmp_path) == tmp_path / room_labels.FONT_FILE_NAME
+
+
+def test_rooms_are_ordered_as_read_on_the_map():
+    """Rows top to bottom; rooms at about the same height left to right."""
+    labels = [
+        (1, "Right, slightly higher", (80, 48)),
+        (2, "Top", (50, 10)),
+        (3, "Left", (10, 52)),
+        (4, "Bottom", (40, 90)),
+    ]
+
+    assert room_labels.rooms_in_map_order(labels, row_height=10) == [2, 3, 1, 4]

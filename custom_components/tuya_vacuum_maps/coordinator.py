@@ -17,9 +17,13 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .cloud_commands import send_commands
 from .const import DOMAIN
 from .room_command import MIN_CLEAN_PASSES, room_clean_commands
-from .room_labels import draw_room_labels
+from .room_labels import draw_room_labels, room_label_positions, rooms_in_map_order
 
 UPDATE_INTERVAL = timedelta(seconds=10)
+
+# Rooms whose labels are within this fraction of the map height of each other
+# count as one row when ordering rooms as they appear on the map
+ROW_HEIGHT_FRACTION = 1 / 15
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,6 +35,8 @@ class MapData:
     image: bytes
     # Room names by room id
     rooms: dict[int, str]
+    # Room ids as they appear on the map, top left to bottom right
+    map_order: list[int]
 
 
 class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
@@ -66,6 +72,7 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
 
         image = vacuum_map.to_image()
         rooms = {}
+        map_order = []
         # Only version 1 layouts carry room info
         if vacuum_map.layout.version == 1:
             draw_room_labels(image, vacuum_map.layout, self._font_cache_dir)
@@ -73,10 +80,14 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
                 room.id: room.name.rstrip("\0") or f"Room {room.id}"
                 for room in vacuum_map.layout.rooms
             }
+            map_order = rooms_in_map_order(
+                room_label_positions(vacuum_map.layout),
+                vacuum_map.layout.height * ROW_HEIGHT_FRACTION,
+            )
 
         image_bytes = io.BytesIO()
         image.save(image_bytes, format="PNG")
-        return MapData(image=image_bytes.getvalue(), rooms=rooms)
+        return MapData(image=image_bytes.getvalue(), rooms=rooms, map_order=map_order)
 
     async def async_clean_rooms(self, room_ids: list[int], clean_passes: int) -> None:
         """Make the vacuum clean the given rooms, in the given order."""

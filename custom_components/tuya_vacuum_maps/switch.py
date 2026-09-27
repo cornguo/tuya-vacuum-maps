@@ -67,8 +67,11 @@ class RoomSwitch(VacuumMapEntity, SwitchEntity, RestoreEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return the room id and its place in the cleaning order."""
-        attributes: dict[str, Any] = {"room_id": self.room_id}
+        """Return the room's id, name, place on the map and in the cleaning order."""
+        attributes: dict[str, Any] = {"room_id": self.room_id, "room_name": self.name}
+        map_order = self.coordinator.data.map_order
+        if self.room_id in map_order:
+            attributes["map_order"] = map_order.index(self.room_id) + 1
         if self.is_on:
             attributes["order"] = self._runtime.selected_rooms.index(self.room_id) + 1
         return attributes

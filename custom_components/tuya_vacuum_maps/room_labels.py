@@ -59,6 +59,25 @@ def room_label_positions(
     return labels
 
 
+def rooms_in_map_order(
+    labels: list[tuple[int, str, tuple[int, int]]], row_height: float
+) -> list[int]:
+    """Return the room ids in reading order of their labels on the map.
+
+    Rooms are read top to bottom, and left to right within a row. A row is the
+    rooms whose labels are less than row_height below the row's topmost label,
+    so rooms side by side read left to right despite small height differences.
+    """
+    rows: list[list[tuple[int, int]]] = []
+    row_top = None
+    for room_id, _, (x, y) in sorted(labels, key=lambda label: label[2][1]):
+        if row_top is None or y - row_top >= row_height:
+            rows.append([])
+            row_top = y
+        rows[-1].append((x, room_id))
+    return [room_id for row in rows for _, room_id in sorted(row)]
+
+
 def label_text(room_id: int, name: str) -> str:
     """Return the text of a room's label."""
     return f"{name}\n(ID: {room_id})" if name else f"(ID: {room_id})"
