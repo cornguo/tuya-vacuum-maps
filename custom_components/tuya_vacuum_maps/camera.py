@@ -9,8 +9,12 @@ import tuya_vacuum
 from homeassistant.components.camera import Camera, ENTITY_ID_FORMAT
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import generate_entity_id
+
+from .const import DOMAIN, TUYA_LOCAL_DOMAIN
 
 SCAN_INTERVAL = timedelta(seconds=10)
 
@@ -32,11 +36,31 @@ async def async_setup_entry(
     client_secret = config_entry.data["client_secret"]
     device_id = config_entry.data["device_id"]
 
+    # Show the map on the vacuum's Tuya Local device if there is one. Only link
+    # to it by identifier, so its name and other details are left unchanged.
+    tuya_local_identifier = (TUYA_LOCAL_DOMAIN, device_id)
+    if dr.async_get(hass).async_get_device(identifiers={tuya_local_identifier}):
+        device_info = DeviceInfo(identifiers={tuya_local_identifier})
+    else:
+        device_info = DeviceInfo(identifiers={(DOMAIN, device_id)}, name=name)
+
     _LOGGER.debug("Adding entities")
 
     # Add entity to HA.
     async_add_entities(
-        [VacuumMapCamera(origin, client_id, client_secret, device_id, entity_id, hass)]
+        [
+            VacuumMapCamera(
+                origin,
+                client_id,
+                client_secret,
+                device_id,
+                entity_id,
+                hass,
+                name=name,
+                unique_id=config_entry.entry_id,
+                device_info=device_info,
+            )
+        ]
     )
 
     _LOGGER.debug("Done")
@@ -45,9 +69,23 @@ async def async_setup_entry(
 class VacuumMapCamera(Camera):
     """Home Assistant entity to display the map from a vacuum."""
 
-    def __init__(self, origin, client_id, client_secret, device_id, entity_id, hass):
+    def __init__(
+        self,
+        origin,
+        client_id,
+        client_secret,
+        device_id,
+        entity_id,
+        hass,
+        name,
+        unique_id,
+        device_info,
+    ):
         """Initialize the camera."""
         super().__init__()
+        self._attr_name = name
+        self._attr_unique_id = unique_id
+        self._attr_device_info = device_info
         self._origin = origin
         self._client_id = client_id
         self._client_secret = client_secret
