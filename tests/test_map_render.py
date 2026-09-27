@@ -1,22 +1,23 @@
 """Tests for rendering the map."""
 
-import importlib.util
+import importlib
 from pathlib import Path
-from types import SimpleNamespace
+import sys
+from types import ModuleType, SimpleNamespace
 
 from PIL import Image
 
-# Load the module by path so the test doesn't import the integration package,
-# whose __init__ requires Home Assistant.
-_SPEC = importlib.util.spec_from_file_location(
-    "map_render",
-    Path(__file__).parent.parent
-    / "custom_components"
-    / "tuya_vacuum_maps"
-    / "map_render.py",
-)
-map_render = importlib.util.module_from_spec(_SPEC)
-_SPEC.loader.exec_module(map_render)
+# map_render imports its sibling modules, so load it from a stand-in package
+# for the integration: its real __init__ requires Home Assistant.
+_PACKAGE = "tuya_vacuum_maps_without_home_assistant"
+if _PACKAGE not in sys.modules:
+    package = ModuleType(_PACKAGE)
+    package.__path__ = [
+        str(Path(__file__).parent.parent / "custom_components" / "tuya_vacuum_maps")
+    ]
+    sys.modules[_PACKAGE] = package
+map_render = importlib.import_module(f"{_PACKAGE}.map_render")
+virtual_areas = importlib.import_module(f"{_PACKAGE}.virtual_areas")
 
 GREEN = (0, 128, 0)
 BLUE = (0, 0, 255)
@@ -58,3 +59,47 @@ def test_vacuum_is_drawn_at_the_end_of_its_path():
     assert _pixel(image, 20, 10) == BLUE
     # The path line between the points
     assert _pixel(image, 13, 10) not in (BACKGROUND, GREEN, BLUE)
+
+
+class CountingParser:
+    """Stand in for tuya-vacuum's VacuumMap, counting how often it's used."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def __call__(self, layout: str, path: str) -> SimpleNamespace:
+        self.calls += 1
+        vacuum_map = _map([])
+        # A version 0 layout has no rooms to label
+        vacuum_map.layout.version = 0
+        return vacuum_map
+
+
+def test_unchanged_map_is_not_rendered_again(tmp_path):
+    """The same files and areas give the last result without parsing."""
+    parser = CountingParser()
+    renderer = map_render.MapRenderer(tmp_path, parse_map=parser)
+    areas = virtual_areas.VirtualAreas()
+
+    first = renderer.render("aa", "bb", areas)
+    second = renderer.render("aa", "bb", areas)
+
+    assert second is first
+    assert parser.calls == 1
+
+
+def test_changes_render_the_map_again(tmp_path):
+    """New files, changed areas or a downloaded font render again."""
+    parser = CountingParser()
+    renderer = map_render.MapRenderer(tmp_path, parse_map=parser)
+    areas = virtual_areas.VirtualAreas()
+    renderer.render("aa", "bb", areas)
+
+    renderer.render("aa", "cc", areas)
+    # Areas are updated in place by the coordinator
+    areas.zones.append([(0, 0), (1, 0), (1, 1)])
+    renderer.render("aa", "cc", areas)
+    (tmp_path / map_render.FONT_FILE_NAME).write_bytes(b"font")
+    renderer.render("aa", "cc", areas)
+
+    assert parser.calls == 4

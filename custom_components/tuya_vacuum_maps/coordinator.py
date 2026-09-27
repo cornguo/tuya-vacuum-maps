@@ -1,11 +1,8 @@
 """Fetch the vacuum map for all of an entry's entities."""
 
 from dataclasses import dataclass, field
-import io
 import logging
 from pathlib import Path
-
-from tuya_vacuum.vacuum_map import VacuumMap
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -15,33 +12,17 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .cloud import TuyaCloud
 from .const import DOMAIN
-from .map_render import render_map
+from .map_render import MapData, MapRenderer
 from .polling import ACTIVE_INTERVAL, update_interval
 from .room_command import MIN_CLEAN_PASSES, room_clean_commands
-from .room_labels import draw_room_labels, room_label_positions, rooms_in_map_order
-from .virtual_areas import VirtualAreas, draw_virtual_areas, update_virtual_areas
+from .virtual_areas import VirtualAreas, update_virtual_areas
 
 # Map files the realtime map API returns that are drawn: 0 is the layout and
 # 1 the path (2 is the incremental path and 3 the planning path)
 LAYOUT_MAP_TYPE = 0
 PATH_MAP_TYPE = 1
 
-# Rooms whose labels are within this fraction of the map height of each other
-# count as one row when ordering rooms as they appear on the map
-ROW_HEIGHT_FRACTION = 1 / 15
-
 _LOGGER = logging.getLogger(__name__)
-
-
-@dataclass
-class MapData:
-    """The latest map of the vacuum."""
-
-    image: bytes
-    # Room names by room id
-    rooms: dict[int, str]
-    # Room ids as they appear on the map, top left to bottom right
-    map_order: list[int]
 
 
 class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
@@ -57,8 +38,10 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
             config_entry=entry,
             name=entry.title,
             update_interval=ACTIVE_INTERVAL,
+            # Unchanged maps don't update the entities
+            always_update=False,
         )
-        self._font_cache_dir = Path(hass.config.path(".cache", DOMAIN))
+        self._renderer = MapRenderer(Path(hass.config.path(".cache", DOMAIN)))
         # Created in the executor, as creating its HTTP client loads certificates
         self._cloud: TuyaCloud | None = None
         # Last reported virtual walls and zones
@@ -100,32 +83,10 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
             for item in cloud.get(f"/v1.0/users/sweepers/file/{device_id}/realtime-map")
             if item["map_type"] in (LAYOUT_MAP_TYPE, PATH_MAP_TYPE)
         }
-        vacuum_map = VacuumMap(files.get(LAYOUT_MAP_TYPE), files.get(PATH_MAP_TYPE))
         self._read_status(cloud, device_id)
-
-        image = draw_virtual_areas(
-            render_map(vacuum_map),
-            self._virtual_areas,
-            (vacuum_map.layout.origin_x, vacuum_map.layout.origin_y),
-            vacuum_map.layout.width,
+        return self._renderer.render(
+            files.get(LAYOUT_MAP_TYPE), files.get(PATH_MAP_TYPE), self._virtual_areas
         )
-        rooms = {}
-        map_order = []
-        # Only version 1 layouts carry room info
-        if vacuum_map.layout.version == 1:
-            draw_room_labels(image, vacuum_map.layout, self._font_cache_dir)
-            rooms = {
-                room.id: room.name.rstrip("\0") or f"Room {room.id}"
-                for room in vacuum_map.layout.rooms
-            }
-            map_order = rooms_in_map_order(
-                room_label_positions(vacuum_map.layout),
-                vacuum_map.layout.height * ROW_HEIGHT_FRACTION,
-            )
-
-        image_bytes = io.BytesIO()
-        image.save(image_bytes, format="PNG")
-        return MapData(image=image_bytes.getvalue(), rooms=rooms, map_order=map_order)
 
     def _read_status(self, cloud: TuyaCloud, device_id: str) -> None:
         """Read what the vacuum is doing, and its virtual walls and zones.
