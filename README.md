@@ -12,6 +12,7 @@ This is a fork of [jaidenlabelle/tuya-vacuum-maps](https://github.com/jaidenlabe
 - **Singapore data center**: `https://openapi-sg.iotbing.com` can be selected as the server.
 - **Tuya Local setup**: if [Tuya Local](https://github.com/make-all/tuya-local) is installed, setup can pick one of its devices to fill in the device ID and name.
 - **Room labels**: each room is labelled on the map with its name and ID, e.g. `客廳 (ID: 0)`. Non-ASCII names (such as Chinese) are drawn with Noto Sans TC, downloaded once on first use into `config/.cache/tuya_vacuum_maps/`.
+- **Thinner cleaning path**: the path is drawn 3 px wide instead of 8, so it no longer covers the room colours and labels.
 
 **Fixes**
 - **Maps with several rooms failed to render**: the room parser in `tuya-vacuum` didn't skip each room's outline points, so every room after the first was read from the wrong place (`UnicodeDecodeError`).
