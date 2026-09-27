@@ -4,18 +4,22 @@
 This component adds a new camera which polls the Tuya Cloud API for the latest realtime map data.<br>
 This project is primarily focused on Lefant vacuums, but aims to support all Tuya vacuums.
 
-## Disclaimer: Supporting More Vacuums
-Adding support for new vacuums is very difficult. To quote the developer of the now-discontinued `tuya_cloud_map_extractor`:
+## Changes in This Fork
 
-> However, compatibility with other Tuya-based vacuums is limited and often inconsistent. Adding support for new models typically requires extensive reverse engineering, decoding binary map data, and handling manufacturer-specific quirks—for each individual device or firmware version.
+This is a fork of [jaidenlabelle/tuya-vacuum-maps](https://github.com/jaidenlabelle/tuya-vacuum-maps) with the following changes:
 
-Since I do not have access to any of these vacuums, and since they all have different protocols and map formats without any documentation, I need you to contribute to this project with the fix for your vacuum:
+**New features**
+- **Singapore data center**: `https://openapi-sg.iotbing.com` can be selected as the server.
+- **Tuya Local setup**: if [Tuya Local](https://github.com/make-all/tuya-local) is installed, setup can pick one of its devices to fill in the device ID and name.
+- **Room labels**: each room is labelled on the map with its name and ID, e.g. `客廳 (ID: 0)`. Non-ASCII names (such as Chinese) are drawn with Noto Sans TC, downloaded once on first use into `config/.cache/tuya_vacuum_maps/`.
 
-- You can look through the code to see how it decodes the map format, and then download a map file from your vacuum to see what causes the error. See the [instructions for setting up a developement environment](#development-environment).
-- Fix the problem for your vacuum.
-- Write unit tests, and include a copy of the map and path data files for your vacuum, so that I can verify any future updates do not undo your fix.
-- Create a Pull Request to merge your fixes with this repository.
+**Fixes**
+- **Maps with several rooms failed to render**: the room parser in `tuya-vacuum` didn't skip each room's outline points, so every room after the first was read from the wrong place (`UnicodeDecodeError`).
+- **"Unknown map type: 3" warning**: no longer logged for map types 2 (incremental path) and 3 (planning path), which Tuya documents but aren't needed for the map.
+- **Blocking calls in the event loop**: fetching and rendering the map now run outside Home Assistant's event loop, fixing the "Detected blocking call ... inside the event loop" warning.
+- **No unique ID**: the map camera now has a unique ID and a device, so it can be managed from the UI. If the vacuum is set up in Tuya Local, the camera appears on that device's page.
 
+[![Add to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=cornguo&repository=tuya-vacuum-maps&category=integration)
 
 ## Installation
 
@@ -26,13 +30,12 @@ To install this integration manually, add the contents of `custom_components` to
 ### Installing using HACS
 
 1. [Install HACS](https://www.hacs.xyz/docs/use/) if its not already installed.
-1. Add this repository to HACS by following this guide: [HACS: Add Custom Repository](https://www.hacs.xyz/docs/faq/custom_repositories/).
+1. Click the **Add to HACS** button above, or add this repository to HACS by following this guide: [HACS: Add Custom Repository](https://www.hacs.xyz/docs/faq/custom_repositories/).
 3. Search for this integration using the HACS browser inside Home Assistant, and install.
 
 ## Compatibility List
 
 This is a list of tested devices.
-Create a new [issue](https://github.com/jaidenlab/tuya-vacuum-maps/issues) to add your device.
 
 | Device                                                | Support                           |
 | ----------------------------------------------------- | --------------------------------- |
