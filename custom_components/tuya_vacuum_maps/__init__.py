@@ -7,9 +7,10 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
 from . import map_type_filter, path_style, room_parser
-from .const import DOMAIN
+from .coordinator import VacuumMapCoordinator, VacuumMapRuntime
+from .entity import entity_id_prefix, map_device
 
-PLATFORMS = [Platform.CAMERA]
+PLATFORMS = [Platform.BUTTON, Platform.CAMERA, Platform.NUMBER, Platform.SWITCH]
 
 _LOGGER = logging.getLogger(__name__)
 logging.getLogger("tuya_vacuum").setLevel(logging.DEBUG)
@@ -23,8 +24,16 @@ path_style.apply()
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Tuya Vacuum Maps from a config entry."""
 
-    hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = entry
+    coordinator = VacuumMapCoordinator(hass, entry)
+    await coordinator.async_config_entry_first_refresh()
+
+    device_info, tuya_local_object_id = map_device(hass, entry)
+    entry.runtime_data = VacuumMapRuntime(
+        coordinator=coordinator,
+        device_info=device_info,
+        tuya_local_object_id=tuya_local_object_id,
+        entity_id_prefix=entity_id_prefix(entry, tuya_local_object_id),
+    )
 
     # Create each HA object for each plaform the device requires.
     # It's done by calling the `async_setup_entry` function in each platform module.

@@ -13,6 +13,7 @@ This is a fork of [jaidenlabelle/tuya-vacuum-maps](https://github.com/jaidenlabe
 - **Tuya Local setup**: if [Tuya Local](https://github.com/make-all/tuya-local) is installed, setup can pick one of its devices to fill in the device ID and name.
 - **Room labels**: each room is labelled on the map with its name and ID, e.g. `客廳 (ID: 0)`. Non-ASCII names (such as Chinese) are drawn with Noto Sans TC, downloaded once on first use into `config/.cache/tuya_vacuum_maps/`.
 - **Thinner cleaning path**: the path is drawn 3 px wide instead of 8, so it no longer covers the room colours and labels.
+- **Room cleaning**: a switch per room, a clean passes slider (1–3) and a "Clean selected rooms" button start cleaning the chosen rooms, in the order they were selected. See [Cleaning Rooms](#cleaning-rooms).
 
 **Fixes**
 - **Maps with several rooms failed to render**: the room parser in `tuya-vacuum` didn't skip each room's outline points, so every room after the first was read from the wrong place (`UnicodeDecodeError`).
@@ -34,6 +35,18 @@ To install this integration manually, add the contents of `custom_components` to
 1. [Install HACS](https://www.hacs.xyz/docs/use/) if its not already installed.
 1. Click the **Add to HACS** button above, or add this repository to HACS by following this guide: [HACS: Add Custom Repository](https://www.hacs.xyz/docs/faq/custom_repositories/).
 3. Search for this integration using the HACS browser inside Home Assistant, and install.
+
+## Cleaning Rooms
+
+For vacuums whose map has rooms, the integration adds:
+
+- **A switch per room** (`switch.<vacuum>_room_<id>`), named after the room in the vacuum's app. Rooms are cleaned in the order their switches were turned on, shown in each switch's `order` attribute.
+- **Clean passes** (`number.<vacuum>_clean_passes`): how many times each room is cleaned, 1–3.
+- **Clean selected rooms** (`button.<vacuum>_clean_rooms`): starts cleaning the selected rooms.
+
+`<vacuum>` is the Tuya Local vacuum's entity ID (e.g. `robot` for `vacuum.robot`), or the integration entry's name otherwise.
+
+The command is sent through the Tuya Cloud API. It has been tested on a Hitachi RV-X20DP, which uses protocol version 0 of Tuya's laser robot vacuum protocol; other vacuums may use another version.
 
 ## Compatibility List
 
