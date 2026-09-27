@@ -16,6 +16,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .cloud_commands import send_commands
 from .const import DOMAIN
+from .map_render import render_map
 from .room_command import MIN_CLEAN_PASSES, room_clean_commands
 from .room_labels import draw_room_labels, room_label_positions, rooms_in_map_order
 from .virtual_areas import VirtualAreas, draw_virtual_areas, update_virtual_areas
@@ -76,7 +77,7 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
         self._update_virtual_areas(vacuum)
 
         image = draw_virtual_areas(
-            vacuum_map.to_image(),
+            render_map(vacuum_map),
             self._virtual_areas,
             (vacuum_map.layout.origin_x, vacuum_map.layout.origin_y),
             vacuum_map.layout.width,
