@@ -67,3 +67,13 @@ def test_commands_as_local_data_point_values():
     ) == {15: "qgAEFAEBABY=", 4: "selectroom"}
     # A vacuum without a known number for a code can't be commanded locally
     assert room_command.commands_as_dp_values(commands, {"command_trans": 15}) is None
+
+
+def test_map_upload_request():
+    """The vacuum is asked for both its map and path, by code or locally."""
+    commands = room_command.map_upload_commands()
+
+    assert commands == [{"code": "request", "value": "get_both"}]
+    assert room_command.commands_as_dp_values(commands, {"request": 16}) == {
+        16: "get_both"
+    }

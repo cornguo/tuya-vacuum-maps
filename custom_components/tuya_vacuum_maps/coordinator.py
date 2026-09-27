@@ -18,6 +18,7 @@ from .polling import ACTIVE_INTERVAL, update_interval
 from .room_command import (
     MIN_CLEAN_PASSES,
     commands_as_dp_values,
+    map_upload_commands,
     room_clean_commands,
 )
 from .virtual_areas import VirtualAreas, update_virtual_areas
@@ -52,6 +53,7 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
         # Last reported virtual walls and zones
         self._virtual_areas = VirtualAreas()
         self._status_failed = False
+        self._map_request_failed = False
         # Value of the vacuum's `status` data point, e.g. "cleaning"
         self._vacuum_status: str | None = None
         # Whether the walls and zones have been read at least once
@@ -79,7 +81,36 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
             raise UpdateFailed(f"Could not fetch the vacuum map: {err}") from err
         # Fetch less often while the vacuum is idle, e.g. docked
         self.update_interval = update_interval(self._vacuum_status)
+        # Ask for a fresh map for the next update
+        await self._async_request_map_upload()
         return data
+
+    async def _async_request_map_upload(self) -> None:
+        """Make the vacuum upload its current map and path to the cloud.
+
+        Without it the map files stay as they were when last asked for, e.g.
+        by the vacuum's app. The upload takes a few seconds, so it's asked for
+        after an update, for the next one. A failure only leaves the map as it
+        is, logged once.
+        """
+        commands = map_upload_commands()
+        dp_values = commands_as_dp_values(commands, self._dp_ids or {})
+        if dp_values is not None and await self._local.async_set(dp_values):
+            return
+
+        device_id = self.config_entry.data["device_id"]
+        try:
+            await self.hass.async_add_executor_job(
+                lambda: self._get_cloud().post(
+                    f"/v1.0/devices/{device_id}/commands", {"commands": commands}
+                )
+            )
+        except Exception as err:  # pylint: disable=broad-except
+            if not self._map_request_failed:
+                _LOGGER.warning("Could not ask the vacuum to upload its map: %s", err)
+            self._map_request_failed = True
+        else:
+            self._map_request_failed = False
 
     def _get_cloud(self) -> TuyaCloud:
         """Return the Tuya Cloud client. Call it in the executor."""

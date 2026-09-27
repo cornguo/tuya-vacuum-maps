@@ -49,6 +49,15 @@ def commands_as_dp_values(
     return {dp_ids[command["code"]]: command["value"] for command in commands}
 
 
+def map_upload_commands() -> list[dict]:
+    """Return the device commands that make the vacuum upload its map.
+
+    The vacuum only updates the map and path files the realtime map API
+    returns when asked, e.g. by the vacuum's app while it shows the map.
+    """
+    return [{"code": "request", "value": "get_both"}]
+
+
 def room_clean_commands(room_ids: list[int], clean_passes: int) -> list[dict]:
     """Return the device commands that start cleaning the given rooms."""
     frame = encode_room_clean(room_ids, clean_passes)
