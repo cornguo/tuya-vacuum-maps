@@ -70,11 +70,9 @@ class MapRenderer:
 
         vacuum_map = self._parse_map(layout, path)
         map_layout = vacuum_map.layout
-        image = draw_virtual_areas(
-            render_map(vacuum_map),
-            areas,
-            (map_layout.origin_x, map_layout.origin_y),
-            map_layout.width,
+        image = render_map(vacuum_map)
+        draw_virtual_areas(
+            image, areas, (map_layout.origin_x, map_layout.origin_y), map_layout.width
         )
         rooms = {}
         map_order = []

@@ -91,27 +91,48 @@ def update_virtual_areas(areas: VirtualAreas, command_trans: str) -> None:
 
 def draw_virtual_areas(
     image: Image.Image, areas: VirtualAreas, origin: Point, layout_width: int
-) -> Image.Image:
-    """Return the image with the zones and walls drawn over it."""
+) -> None:
+    """Draw the zones and walls over an RGB image, in place.
+
+    Only the part of the image around them is blended, instead of a
+    transparent overlay and a blended copy of the whole image.
+    """
     if not areas.walls and not areas.zones:
-        return image
+        return
 
     scale = image.width / layout_width
     origin_x, origin_y = origin
+    wall_width = max(1, round(WALL_WIDTH * scale))
 
     def to_image(point: Point) -> Point:
         return ((origin_x + point[0]) * scale, (origin_y + point[1]) * scale)
 
-    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
-    for zone in areas.zones:
-        if len(zone) >= 3:
-            draw.polygon([to_image(point) for point in zone], fill=COLOR)
-    for start, end in areas.walls:
-        draw.line(
-            [to_image(start), to_image(end)],
-            fill=COLOR,
-            width=max(1, round(WALL_WIDTH * scale)),
-        )
+    zones = [[to_image(point) for point in zone] for zone in areas.zones if len(zone) >= 3]
+    walls = [(to_image(start), to_image(end)) for start, end in areas.walls]
+    points = [point for zone in zones for point in zone] + [
+        point for wall in walls for point in wall
+    ]
+    if not points:
+        return
 
-    return Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
+    # The part of the image they cover, with room for the wall width
+    left = max(0, int(min(x for x, _ in points)) - wall_width)
+    top = max(0, int(min(y for _, y in points)) - wall_width)
+    right = min(image.width, int(max(x for x, _ in points)) + wall_width + 1)
+    bottom = min(image.height, int(max(y for _, y in points)) + wall_width + 1)
+    if left >= right or top >= bottom:
+        return
+
+    def shift(point: Point) -> Point:
+        return (point[0] - left, point[1] - top)
+
+    box = (left, top, right, bottom)
+    overlay = Image.new("RGBA", (right - left, bottom - top), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    for zone in zones:
+        draw.polygon([shift(point) for point in zone], fill=COLOR)
+    for start, end in walls:
+        draw.line([shift(start), shift(end)], fill=COLOR, width=wall_width)
+
+    blended = Image.alpha_composite(image.crop(box).convert("RGBA"), overlay)
+    image.paste(blended.convert("RGB"), box)

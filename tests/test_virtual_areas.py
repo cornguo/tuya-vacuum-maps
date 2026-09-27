@@ -81,18 +81,32 @@ def test_zones_are_drawn_half_transparent_red():
     areas = virtual_areas.VirtualAreas(zones=[[(1, 1), (3, 1), (3, 3), (1, 3)]])
 
     # Origin (1, 1) in a 10 x 10 layout drawn 4 times larger
-    result = virtual_areas.draw_virtual_areas(image, areas, (1, 1), 10)
+    virtual_areas.draw_virtual_areas(image, areas, (1, 1), 10)
 
-    red, _, blue_part = result.getpixel((12, 12))
+    red, _, blue_part = image.getpixel((12, 12))
     assert (red, blue_part) == pytest.approx((128, 127), abs=1)
-    assert result.getpixel((2, 2)) == blue
+    assert image.getpixel((2, 2)) == blue
+    assert image.getpixel((30, 30)) == blue
+
+
+def test_areas_outside_the_image_are_clipped():
+    """Zones partly or wholly off the map don't fail."""
+    image = Image.new("RGB", (40, 40), (0, 0, 255))
+    areas = virtual_areas.VirtualAreas(
+        zones=[[(-5, -5), (2, -5), (2, 2), (-5, 2)], [(50, 50), (60, 50), (60, 60)]],
+        walls=[((-20, 0), (20, 0))],
+    )
+
+    virtual_areas.draw_virtual_areas(image, areas, (0, 0), 10)
+
+    assert image.getpixel((4, 4))[0] > 0
+    assert image.size == (40, 40)
 
 
 def test_nothing_to_draw_keeps_the_image():
-    """Without walls and zones the image is returned as is."""
+    """Without walls and zones the image is left unchanged."""
     image = Image.new("RGB", (4, 4))
 
-    assert (
-        virtual_areas.draw_virtual_areas(image, virtual_areas.VirtualAreas(), (0, 0), 4)
-        is image
-    )
+    virtual_areas.draw_virtual_areas(image, virtual_areas.VirtualAreas(), (0, 0), 4)
+
+    assert image.getcolors() == [(16, (0, 0, 0))]
