@@ -18,6 +18,7 @@ from .cloud_commands import send_commands
 from .const import DOMAIN
 from .room_command import MIN_CLEAN_PASSES, room_clean_commands
 from .room_labels import draw_room_labels, room_label_positions, rooms_in_map_order
+from .virtual_areas import VirtualAreas, draw_virtual_areas, update_virtual_areas
 
 UPDATE_INTERVAL = timedelta(seconds=10)
 
@@ -54,6 +55,9 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
             update_interval=UPDATE_INTERVAL,
         )
         self._font_cache_dir = Path(hass.config.path(".cache", DOMAIN))
+        # Last reported virtual walls and zones
+        self._virtual_areas = VirtualAreas()
+        self._virtual_areas_failed = False
 
     async def _async_update_data(self) -> MapData:
         """Fetch the map, running the blocking calls in the executor."""
@@ -69,8 +73,14 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
             data["server"], data["client_id"], data["client_secret"], data["device_id"]
         )
         vacuum_map = vacuum.fetch_realtime_map()
+        self._update_virtual_areas(vacuum)
 
-        image = vacuum_map.to_image()
+        image = draw_virtual_areas(
+            vacuum_map.to_image(),
+            self._virtual_areas,
+            (vacuum_map.layout.origin_x, vacuum_map.layout.origin_y),
+            vacuum_map.layout.width,
+        )
         rooms = {}
         map_order = []
         # Only version 1 layouts carry room info
@@ -88,6 +98,24 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
         image_bytes = io.BytesIO()
         image.save(image_bytes, format="PNG")
         return MapData(image=image_bytes.getvalue(), rooms=rooms, map_order=map_order)
+
+    def _update_virtual_areas(self, vacuum: tuya_vacuum.TuyaVacuum) -> None:
+        """Read the virtual walls and zones from the device's status.
+
+        Failing to read them only leaves them off the map, logged once.
+        """
+        try:
+            response = vacuum.api.request(
+                "GET", f"/v1.0/devices/{vacuum.device_id}/status"
+            )
+            status = {item["code"]: item["value"] for item in response["result"]}
+            update_virtual_areas(self._virtual_areas, status.get("command_trans", ""))
+        except Exception as err:  # pylint: disable=broad-except
+            if not self._virtual_areas_failed:
+                _LOGGER.warning("Could not read virtual walls and zones: %s", err)
+            self._virtual_areas_failed = True
+        else:
+            self._virtual_areas_failed = False
 
     async def async_clean_rooms(self, room_ids: list[int], clean_passes: int) -> None:
         """Make the vacuum clean the given rooms, in the given order."""
