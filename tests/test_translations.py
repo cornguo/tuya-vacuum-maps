@@ -72,7 +72,7 @@ def test_config_flow_texts_exist():
 def test_entity_and_exception_texts_exist():
     """Translation keys used by entities and errors are translated."""
     en = _translations("en")
-    for platform in ("button", "number"):
+    for platform in ("button", "number", "sensor"):
         for key in re.findall(
             r'_attr_translation_key = "(\w+)"', _source(f"{platform}.py")
         ):

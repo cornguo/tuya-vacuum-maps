@@ -52,6 +52,11 @@
       "clean_passes": {
         "name": "Clean passes"
       }
+    },
+    "sensor": {
+      "current_room": {
+        "name": "Current room"
+      }
     }
   },
   "exceptions": {

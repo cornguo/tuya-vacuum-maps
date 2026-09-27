@@ -52,6 +52,11 @@
       "clean_passes": {
         "name": "清掃次數"
       }
+    },
+    "sensor": {
+      "current_room": {
+        "name": "目前所在房間"
+      }
     }
   },
   "exceptions": {

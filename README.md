@@ -12,6 +12,7 @@ This is a fork of [jaidenlabelle/tuya-vacuum-maps](https://github.com/jaidenlabe
 - **Singapore data center**: `https://openapi-sg.iotbing.com` can be selected as the server.
 - **Tuya Local setup**: if [Tuya Local](https://github.com/make-all/tuya-local) is installed, setup can pick one of its devices to fill in the device ID and name.
 - **Room labels**: each room is labelled on the map with its name and ID, e.g. `客廳 (ID: 0)`. Non-ASCII names (such as Chinese) are drawn with Noto Sans TC, downloaded once on first use into `config/.cache/tuya_vacuum_maps/`.
+- **Current room sensor**: `sensor.<vacuum>_current_room` shows the room the vacuum is in, from the end of its path on the map (the nearest room within 25 cm when it's on a wall, e.g. docked), with the room's ID as an attribute. It's as current as the map.
 - **Virtual walls and no-go zones**: drawn on the map in 50% transparent red, as lines and blocks. They're read from the vacuum's reports, which takes one more Tuya Cloud request per map update.
 - **Thinner cleaning path**: the path is drawn 3 px wide instead of 8, so it no longer covers the room colours and labels.
 - **Room cleaning**: a switch per room, a clean passes slider (1–3) and a "Clean selected rooms" button start cleaning the chosen rooms, in the order they were selected. See [Cleaning Rooms](#cleaning-rooms).

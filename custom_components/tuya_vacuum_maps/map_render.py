@@ -16,6 +16,7 @@ from PIL import Image, ImageDraw
 from tuya_vacuum.vacuum_map import VacuumMap
 import tuya_vacuum.vacuum_map_path as path_style
 
+from .current_room import current_room
 from .room_labels import (
     FONT_FILE_NAME,
     draw_room_labels,
@@ -38,6 +39,8 @@ class MapData:
     rooms: dict[int, str]
     # Room ids as they appear on the map, top left to bottom right
     map_order: list[int]
+    # Id of the room the vacuum is in, if any
+    current_room: int | None = None
 
 
 class MapRenderer:
@@ -76,6 +79,7 @@ class MapRenderer:
         )
         rooms = {}
         map_order = []
+        room_id = None
         # Only version 1 layouts carry room info
         if map_layout.version == 1:
             draw_room_labels(image, map_layout, self._font_cache_dir)
@@ -87,11 +91,12 @@ class MapRenderer:
                 room_label_positions(map_layout),
                 map_layout.height * ROW_HEIGHT_FRACTION,
             )
+            room_id = current_room(map_layout, vacuum_map.path._path_data)
 
         image_bytes = io.BytesIO()
         image.save(image_bytes, format="PNG")
         self._last_inputs = inputs
-        self._last_data = MapData(image_bytes.getvalue(), rooms, map_order)
+        self._last_data = MapData(image_bytes.getvalue(), rooms, map_order, room_id)
         return self._last_data
 
 

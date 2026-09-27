@@ -17,7 +17,13 @@ from .const import DOMAIN
 from .coordinator import VacuumMapCoordinator, VacuumMapRuntime
 from .entity import entity_id_prefix, map_device
 
-PLATFORMS = [Platform.BUTTON, Platform.CAMERA, Platform.NUMBER, Platform.SWITCH]
+PLATFORMS = [
+    Platform.BUTTON,
+    Platform.CAMERA,
+    Platform.NUMBER,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
