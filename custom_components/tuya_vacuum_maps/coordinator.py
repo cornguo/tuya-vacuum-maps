@@ -14,7 +14,7 @@ from .cloud import TuyaCloud
 from .const import DOMAIN
 from .local_device import LocalVacuum, dp_ids_from_specification
 from .map_render import MapData, MapRenderer
-from .polling import ACTIVE_INTERVAL, update_interval
+from .polling import PollingIntervals
 from .room_command import (
     MIN_CLEAN_PASSES,
     commands_as_dp_values,
@@ -38,12 +38,14 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the coordinator."""
+        # Set in the entry's options; changing them reloads the entry
+        self._intervals = PollingIntervals.from_options(entry.options)
         super().__init__(
             hass,
             _LOGGER,
             config_entry=entry,
             name=entry.title,
-            update_interval=ACTIVE_INTERVAL,
+            update_interval=self._intervals.active,
             # Unchanged maps don't update the entities
             always_update=False,
         )
@@ -80,7 +82,7 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
         except Exception as err:  # pylint: disable=broad-except
             raise UpdateFailed(f"Could not fetch the vacuum map: {err}") from err
         # Fetch less often while the vacuum is idle, e.g. docked
-        self.update_interval = update_interval(self._vacuum_status)
+        self.update_interval = self._intervals.for_status(self._vacuum_status)
         # Ask for a fresh map for the next update
         await self._async_request_map_upload()
         return data
@@ -214,7 +216,7 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
                 translation_placeholders={"error": str(err)},
             ) from err
         # Follow the vacuum as it starts, instead of waiting for an idle poll
-        self.update_interval = ACTIVE_INTERVAL
+        self.update_interval = self._intervals.active
         await self.async_request_refresh()
 
 

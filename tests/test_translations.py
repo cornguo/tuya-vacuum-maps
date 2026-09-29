@@ -69,6 +69,17 @@ def test_config_flow_texts_exist():
         assert error in config["error"]
 
 
+def test_options_flow_texts_exist():
+    """Every option of the options flow is labelled and described."""
+    step = _translations("en")["options"]["step"]["init"]
+    source = _source("polling.py")
+    options = re.findall(r'^CONF_\w+_INTERVAL = "(\w+)"', source, re.MULTILINE)
+    assert options
+    for option in options:
+        assert option in step["data"]
+        assert option in step["data_description"]
+
+
 def test_entity_and_exception_texts_exist():
     """Translation keys used by entities and errors are translated."""
     en = _translations("en")

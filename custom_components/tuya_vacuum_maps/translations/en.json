@@ -42,6 +42,22 @@
       "unknown": "Unexpected error. Check the Home Assistant log for details."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Map updates",
+        "description": "How often the map is fetched from the Tuya Cloud.",
+        "data": {
+          "active_interval": "Active interval",
+          "idle_interval": "Idle interval"
+        },
+        "data_description": {
+          "active_interval": "While the vacuum is cleaning, returning to its dock or in an unknown state.",
+          "idle_interval": "While the vacuum is charging, charged, on standby or asleep."
+        }
+      }
+    }
+  },
   "entity": {
     "button": {
       "clean_rooms": {

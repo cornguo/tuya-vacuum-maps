@@ -42,6 +42,22 @@
       "unknown": "發生未預期的錯誤，請查看 Home Assistant 日誌。"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "地圖更新",
+        "description": "從 Tuya 雲端取得地圖的頻率。",
+        "data": {
+          "active_interval": "活動時更新間隔",
+          "idle_interval": "閒置時更新間隔"
+        },
+        "data_description": {
+          "active_interval": "掃地機器人清掃中、返回充電座中或狀態不明時。",
+          "idle_interval": "掃地機器人充電中、已充飽、待機或休眠時。"
+        }
+      }
+    }
+  },
   "entity": {
     "button": {
       "clean_rooms": {

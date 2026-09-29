@@ -18,6 +18,13 @@ from homeassistant.const import (
     CONF_CLIENT_SECRET,
     CONF_DEVICE_ID,
     CONF_NAME,
+    UnitOfTime,
+)
+from homeassistant.core import callback
+from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
 )
 
 from .const import (
@@ -27,6 +34,14 @@ from .const import (
     CONF_TUYA_LOCAL_ENTRY,
     DOMAIN,
     TUYA_LOCAL_DOMAIN,
+)
+from .polling import (
+    CONF_ACTIVE_INTERVAL,
+    CONF_IDLE_INTERVAL,
+    DEFAULT_ACTIVE_SECONDS,
+    DEFAULT_IDLE_SECONDS,
+    MAX_INTERVAL_SECONDS,
+    MIN_INTERVAL_SECONDS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,6 +67,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     # Home Assistant will call the migrate method if the version changes
     VERSION = 1
     MINOR_VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> config_entries.OptionsFlow:
+        """Return the options flow, shown by the entry's Configure button."""
+        return OptionsFlow()
 
     def __init__(self) -> None:
         """Initialize the config flow."""
@@ -164,4 +187,45 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="manual", data_schema=data_schema, errors=errors
+        )
+
+
+# Seconds between map updates, typed in a box
+_INTERVAL_SELECTOR = NumberSelector(
+    NumberSelectorConfig(
+        min=MIN_INTERVAL_SECONDS,
+        max=MAX_INTERVAL_SECONDS,
+        step=1,
+        mode=NumberSelectorMode.BOX,
+        unit_of_measurement=UnitOfTime.SECONDS,
+    )
+)
+
+OPTIONS_SCHEMA = vol.Schema(
+    {
+        vol.Required(
+            CONF_ACTIVE_INTERVAL, default=DEFAULT_ACTIVE_SECONDS
+        ): _INTERVAL_SELECTOR,
+        vol.Required(
+            CONF_IDLE_INTERVAL, default=DEFAULT_IDLE_SECONDS
+        ): _INTERVAL_SELECTOR,
+    }
+)
+
+
+class OptionsFlow(config_entries.OptionsFlowWithReload):
+    """Set how often the map is fetched. Saving reloads the entry."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Show the update intervals."""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                OPTIONS_SCHEMA, self.config_entry.options
+            ),
         )
