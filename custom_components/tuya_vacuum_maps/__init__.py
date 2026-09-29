@@ -11,9 +11,9 @@ from homeassistant.core import HomeAssistant
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
-from . import map_type_filter, path_style, room_parser
+from . import area_cleaning, map_type_filter, path_style, room_parser
 from .card_resource import async_register_card, async_unregister_card
-from .const import DOMAIN
+from .const import CONF_AREA_CLEANING, DOMAIN
 from .coordinator import VacuumMapCoordinator, VacuumMapRuntime
 from .entity import entity_id_prefix, map_device
 
@@ -70,6 +70,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Create each HA object for each plaform the device requires.
     # It's done by calling the `async_setup_entry` function in each platform module.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Area cleaning on the Tuya Local vacuum, with the map's rooms
+    if entry.options.get(CONF_AREA_CLEANING, False):
+        await area_cleaning.async_link(hass, entry.entry_id, entry.runtime_data)
+        entry.async_on_unload(
+            lambda: area_cleaning.unlink(hass, entry.entry_id, entry.runtime_data)
+        )
     return True
 
 

@@ -22,12 +22,14 @@ from homeassistant.const import (
 )
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
 )
 
 from .const import (
+    CONF_AREA_CLEANING,
     CONF_SERVER,
     CONF_SERVER_WEST_AMERICA,
     CONF_SERVERS,
@@ -209,17 +211,19 @@ OPTIONS_SCHEMA = vol.Schema(
         vol.Required(
             CONF_IDLE_INTERVAL, default=DEFAULT_IDLE_SECONDS
         ): _INTERVAL_SELECTOR,
+        # Off by default, as it patches Tuya Local's vacuum entity
+        vol.Required(CONF_AREA_CLEANING, default=False): BooleanSelector(),
     }
 )
 
 
 class OptionsFlow(config_entries.OptionsFlowWithReload):
-    """Set how often the map is fetched. Saving reloads the entry."""
+    """Set the map update intervals and area cleaning; saving reloads."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Show the update intervals."""
+        """Show the options."""
         if user_input is not None:
             return self.async_create_entry(data=user_input)
 

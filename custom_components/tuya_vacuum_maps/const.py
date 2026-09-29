@@ -4,6 +4,8 @@ DOMAIN = "tuya_vacuum_maps"
 
 CONF_SERVER = "server"
 CONF_TUYA_LOCAL_ENTRY = "tuya_local_entry"
+# Option: add area cleaning to the vacuum's Tuya Local entity
+CONF_AREA_CLEANING = "area_cleaning"
 
 # Domain of the Tuya Local integration (github.com/make-all/tuya-local)
 TUYA_LOCAL_DOMAIN = "tuya_local"

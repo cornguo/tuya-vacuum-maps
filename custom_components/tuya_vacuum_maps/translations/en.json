@@ -45,15 +45,17 @@
   "options": {
     "step": {
       "init": {
-        "title": "Map updates",
-        "description": "How often the map is fetched from the Tuya Cloud.",
+        "title": "Options",
+        "description": "How often the map is fetched from the Tuya Cloud, and area cleaning.",
         "data": {
           "active_interval": "Active interval",
-          "idle_interval": "Idle interval"
+          "idle_interval": "Idle interval",
+          "area_cleaning": "Area cleaning on the Tuya Local vacuum"
         },
         "data_description": {
           "active_interval": "While the vacuum is cleaning, returning to its dock or in an unknown state.",
-          "idle_interval": "While the vacuum is charging, charged, on standby or asleep."
+          "idle_interval": "While the vacuum is charging, charged, on standby or asleep.",
+          "area_cleaning": "Adds the map's rooms to the vacuum's Tuya Local entity, for \"Map vacuum segments to areas\" and the \"Clean area\" action. It changes Tuya Local's vacuum entity while this integration runs, and does nothing without Tuya Local."
         }
       }
     }
@@ -81,6 +83,9 @@
     },
     "clean_failed": {
       "message": "Could not start cleaning: {error}"
+    },
+    "rooms_not_on_map": {
+      "message": "None of the areas' rooms ({segments}) are on the map any more. Map the vacuum's segments to areas again."
     }
   }
 }

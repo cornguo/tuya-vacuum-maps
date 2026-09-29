@@ -18,6 +18,7 @@ This is a fork of [jaidenlabelle/tuya-vacuum-maps](https://github.com/jaidenlabe
 - **Room cleaning**: a switch per room, a clean passes slider (1–3) and a "Clean selected rooms" button start cleaning the chosen rooms, in the order they were selected. See [Cleaning Rooms](#cleaning-rooms).
 - **Rooms dashboard card**: a built-in card with a toggle per room, laid out as the rooms appear on the map and numbered in cleaning order, plus the passes slider and clean button. See [Dashboard Card](#dashboard-card).
 - **Adjustable map update intervals**: the integration's **Configure** dialog sets how often the map is fetched while the vacuum is active (default 10 s) and idle (default 60 s), from 5 to 3600 s.
+- **Area cleaning on the Tuya Local vacuum**: optionally, the map's rooms are added to the vacuum's Tuya Local entity, so its rooms can be mapped to Home Assistant areas and cleaned with the **Clean area** action. See [Area Cleaning](#area-cleaning).
 - **Translations**: the setup flow, entity names, error messages and the rooms card are in English and Traditional Chinese (繁體中文).
 
 **Fixes**
@@ -79,6 +80,16 @@ lovelace:
     - url: /tuya_vacuum_maps/tuya-vacuum-maps-rooms-card.js
       type: module
 ```
+
+### Area Cleaning
+
+Home Assistant can map a vacuum's rooms to its areas and clean areas with the `vacuum.clean_area` action ("Clean area" in automations). Tuya Local's vacuum entity doesn't know the rooms, so this integration can add them:
+
+1. Turn on **Area cleaning on the Tuya Local vacuum** in the integration's **Configure** dialog (Settings → Devices & services → Tuya Vacuum Maps).
+2. Open the Tuya Local vacuum's entity settings, choose **Map vacuum segments to areas**, and pick the area of each room.
+3. Use the **Clean area** action with the Tuya Local vacuum. Rooms are cleaned with the **Clean passes** value.
+
+It needs Tuya Local and a Home Assistant version with area cleaning. It works by changing Tuya Local's vacuum entity while this integration runs, only for vacuums set up here; if a Tuya Local update changes that entity, area cleaning is left off and a warning is logged. If rooms are later removed from the map, map the areas again.
 
 ## Compatibility List
 

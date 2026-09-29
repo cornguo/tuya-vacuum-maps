@@ -45,15 +45,17 @@
   "options": {
     "step": {
       "init": {
-        "title": "地圖更新",
-        "description": "從 Tuya 雲端取得地圖的頻率。",
+        "title": "選項",
+        "description": "從 Tuya 雲端取得地圖的頻率，以及區域清掃。",
         "data": {
           "active_interval": "活動時更新間隔",
-          "idle_interval": "閒置時更新間隔"
+          "idle_interval": "閒置時更新間隔",
+          "area_cleaning": "在 Tuya Local 掃地機器人上啟用區域清掃"
         },
         "data_description": {
           "active_interval": "掃地機器人清掃中、返回充電座中或狀態不明時。",
-          "idle_interval": "掃地機器人充電中、已充飽、待機或休眠時。"
+          "idle_interval": "掃地機器人充電中、已充飽、待機或休眠時。",
+          "area_cleaning": "將地圖的房間加入掃地機器人的 Tuya Local 實體，以使用「將掃地機器人區段對應到區域」與「清掃區域」動作。此整合執行時會修改 Tuya Local 的掃地機器人實體；未安裝 Tuya Local 時沒有作用。"
         }
       }
     }
@@ -81,6 +83,9 @@
     },
     "clean_failed": {
       "message": "無法開始清掃：{error}"
+    },
+    "rooms_not_on_map": {
+      "message": "這些區域的房間（{segments}）已不在地圖上，請重新將掃地機器人的區段對應到區域。"
     }
   }
 }

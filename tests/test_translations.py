@@ -72,9 +72,18 @@ def test_config_flow_texts_exist():
 def test_options_flow_texts_exist():
     """Every option of the options flow is labelled and described."""
     step = _translations("en")["options"]["step"]["init"]
-    source = _source("polling.py")
-    options = re.findall(r'^CONF_\w+_INTERVAL = "(\w+)"', source, re.MULTILINE)
-    assert options
+    schema = _source("config_flow.py").split("OPTIONS_SCHEMA = ", 1)[1]
+    schema = schema.split("\n)\n", 1)[0]
+    values = dict(
+        re.findall(
+            r'^(CONF_\w+) = "(\w+)"',
+            _source("const.py") + _source("polling.py"),
+            re.MULTILINE,
+        )
+    )
+    names = re.findall(r"vol\.Required\(\s*(CONF_\w+)", schema)
+    options = [values[name] for name in names]
+    assert len(options) == 3
     for option in options:
         assert option in step["data"]
         assert option in step["data_description"]

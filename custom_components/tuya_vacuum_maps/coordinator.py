@@ -10,6 +10,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .area_cleaning import room_ids_from_segments
 from .cloud import TuyaCloud
 from .const import DOMAIN
 from .local_device import LocalVacuum, dp_ids_from_specification
@@ -113,6 +114,11 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
             self._map_request_failed = True
         else:
             self._map_request_failed = False
+
+    @property
+    def local_device(self):
+        """Return Tuya Local's device for the vacuum, or None."""
+        return self._local.device
 
     def _get_cloud(self) -> TuyaCloud:
         """Return the Tuya Cloud client. Call it in the executor."""
@@ -218,6 +224,21 @@ class VacuumMapCoordinator(DataUpdateCoordinator[MapData]):
         # Follow the vacuum as it starts, instead of waiting for an idle poll
         self.update_interval = self._intervals.active
         await self.async_request_refresh()
+
+    async def async_clean_segments(
+        self, segment_ids: list[str], clean_passes: int
+    ) -> None:
+        """Clean the rooms of Home Assistant's area cleaning, in its order."""
+        room_ids = room_ids_from_segments(
+            segment_ids, self.data.rooms if self.data else {}
+        )
+        if not room_ids:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="rooms_not_on_map",
+                translation_placeholders={"segments": ", ".join(segment_ids)},
+            )
+        await self.async_clean_rooms(room_ids, clean_passes)
 
 
 @dataclass

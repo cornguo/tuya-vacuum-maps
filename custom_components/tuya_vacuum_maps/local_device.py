@@ -43,6 +43,11 @@ class LocalVacuum:
         return entry.get("device") if isinstance(entry, dict) else None
 
     @property
+    def device(self):
+        """Return Tuya Local's device for the vacuum, or None."""
+        return self._device()
+
+    @property
     def available(self) -> bool:
         """Return whether Tuya Local has the vacuum."""
         return not self._failed and self._device() is not None
