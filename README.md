@@ -17,6 +17,7 @@ This is a fork of [jaidenlabelle/tuya-vacuum-maps](https://github.com/jaidenlabe
 - **Thinner cleaning path**: the path is drawn 3 px wide instead of 8, so it no longer covers the room colours and labels.
 - **Room cleaning**: a switch per room, a clean passes slider (1–3) and a "Clean selected rooms" button start cleaning the chosen rooms, in the order they were selected. See [Cleaning Rooms](#cleaning-rooms).
 - **Rooms dashboard card**: a built-in card with a toggle per room, laid out as the rooms appear on the map and numbered in cleaning order, plus the passes slider and clean button. See [Dashboard Card](#dashboard-card).
+- **Map card**: a built-in card showing the map in a box of a set size, with pinch and wheel zoom, dragging, and a follow mode that zooms in on the vacuum and keeps it centred. See [Map Card](#map-card).
 - **Adjustable map update intervals**: the integration's **Configure** dialog sets how often the map is fetched while the vacuum is active (default 10 s) and idle (default 60 s), from 5 to 3600 s.
 - **Area cleaning on the Tuya Local vacuum**: optionally, the map's rooms are added to the vacuum's Tuya Local entity, so its rooms can be mapped to Home Assistant areas and cleaned with the **Clean area** action. See [Area Cleaning](#area-cleaning).
 - **Translations**: the setup flow, entity names, error messages and the rooms card are in English and Traditional Chinese (繁體中文).
@@ -50,6 +51,22 @@ To install this integration manually, add the contents of `custom_components` to
 1. [Install HACS](https://www.hacs.xyz/docs/use/) if its not already installed.
 1. Click the **Add to HACS** button above, or add this repository to HACS by following this guide: [HACS: Add Custom Repository](https://www.hacs.xyz/docs/faq/custom_repositories/).
 3. Search for this integration using the HACS browser inside Home Assistant, and install.
+
+## Map Card
+
+The integration adds a **Tuya Vacuum Maps Map** card to the dashboard card picker. It shows the whole map fitted in a box of the size you set, which you can zoom with a pinch or the mouse wheel and drag around. Two buttons in its corner follow the vacuum (zoomed in and kept centred as it moves) and show the whole map again, as does a double tap or double click:
+
+```yaml
+type: custom:tuya-vacuum-maps-map-card
+entity: camera.robot_map  # optional with a single vacuum
+title: Map                # optional
+height: 400px             # optional, a CSS length or a number of pixels
+width: 100%               # optional
+follow_vacuum: true       # optional, start zoomed in on the vacuum
+follow_zoom: 3            # optional, zoom while following, 1 to 10
+```
+
+Dragging the map stops following the vacuum. The card loads the map only when it changes, using the camera's `image_id` attribute, and finds the vacuum from its `vacuum_position` attribute (fractions of the image's width and height). It comes in the same file as the rooms card, so it needs no other resource.
 
 ## Cleaning Rooms
 
