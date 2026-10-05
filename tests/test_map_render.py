@@ -61,6 +61,32 @@ def test_vacuum_is_drawn_at_the_end_of_its_path():
     assert _pixel(image, 13, 10) not in (BACKGROUND, GREEN, BLUE)
 
 
+def test_vacuum_position_is_the_end_of_its_path():
+    """As fractions of the 40 x 40 image, with the origin at (10, 10)."""
+    vacuum_map = _map([{"x": 0, "y": 0}, {"x": 10, "y": -6}])
+
+    assert map_render.vacuum_position(vacuum_map) == (0.5, 0.1)
+
+
+def test_vacuum_position_is_the_dock_without_a_path():
+    """Without a path the vacuum is on the dock at (30, 30)."""
+    assert map_render.vacuum_position(_map([])) == (0.75, 0.75)
+
+
+def test_rendered_map_has_the_vacuum_position_and_an_image_id(tmp_path):
+    """The image id changes with the image."""
+    renderer = map_render.MapRenderer(tmp_path, parse_map=CountingParser())
+    areas = virtual_areas.VirtualAreas()
+
+    first = renderer.render("aa", "bb", areas)
+    areas.zones.append([(0, 0), (20, 0), (20, 20)])
+    second = renderer.render("aa", "bb", areas)
+
+    assert first.vacuum_position == (0.75, 0.75)
+    assert len(first.image_id) == 12
+    assert second.image_id != first.image_id
+
+
 class CountingParser:
     """Stand in for tuya-vacuum's VacuumMap, counting how often it's used."""
 

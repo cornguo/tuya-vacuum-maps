@@ -1,5 +1,7 @@
 """Home Assistant entity to display the map from a vacuum."""
 
+from typing import Any
+
 from homeassistant.components.camera import DOMAIN as CAMERA_DOMAIN, Camera
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -20,6 +22,8 @@ async def async_setup_entry(
 
 class VacuumMapCamera(CoordinatorEntity[VacuumMapCoordinator], Camera):
     """Home Assistant entity to display the map from a vacuum."""
+
+from typing import Any
 
     _attr_is_streaming = True
 
@@ -44,3 +48,17 @@ class VacuumMapCamera(CoordinatorEntity[VacuumMapCoordinator], Camera):
     ) -> bytes | None:
         """Return bytes of the image."""
         return self.coordinator.data.image
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the vacuum's position and the image's id, for the map card."""
+        data = self.coordinator.data
+        if data is None:
+            return {}
+        position = data.vacuum_position
+        return {
+            "vacuum_position": (
+                [round(position[0], 4), round(position[1], 4)] if position else None
+            ),
+            "image_id": data.image_id,
+        }

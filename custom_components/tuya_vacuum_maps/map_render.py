@@ -9,6 +9,7 @@ to them (see path_style.py) still apply.
 
 import copy
 from dataclasses import dataclass
+import hashlib
 import io
 from pathlib import Path
 
@@ -41,6 +42,10 @@ class MapData:
     map_order: list[int]
     # Id of the room the vacuum is in, if any
     current_room: int | None = None
+    # Where the vacuum is, as fractions of the image's width and height
+    vacuum_position: tuple[float, float] | None = None
+    # Changes with the image, so dashboards know to load it again
+    image_id: str = ""
 
 
 class MapRenderer:
@@ -95,9 +100,31 @@ class MapRenderer:
 
         image_bytes = io.BytesIO()
         image.save(image_bytes, format="PNG")
+        png = image_bytes.getvalue()
         self._last_inputs = inputs
-        self._last_data = MapData(image_bytes.getvalue(), rooms, map_order, room_id)
+        self._last_data = MapData(
+            png,
+            rooms,
+            map_order,
+            room_id,
+            vacuum_position(vacuum_map),
+            hashlib.sha256(png).hexdigest()[:12],
+        )
         return self._last_data
+
+
+def vacuum_position(vacuum_map) -> tuple[float, float]:
+    """Return where render_map draws the vacuum, as fractions of the image.
+
+    The vacuum is at the end of its path; without a path it's on the dock.
+    """
+    layout = vacuum_map.layout
+    path = vacuum_map.path._path_data
+    if path:
+        x, y = path[-1]["x"] + layout.origin_x, path[-1]["y"] + layout.origin_y
+    else:
+        x, y = layout.pile_x, layout.pile_y
+    return (x / layout.width, y / layout.height)
 
 
 def render_map(vacuum_map) -> Image.Image:
