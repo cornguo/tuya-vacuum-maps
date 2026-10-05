@@ -23,8 +23,6 @@ async def async_setup_entry(
 class VacuumMapCamera(CoordinatorEntity[VacuumMapCoordinator], Camera):
     """Home Assistant entity to display the map from a vacuum."""
 
-from typing import Any
-
     _attr_is_streaming = True
 
     def __init__(self, runtime: VacuumMapRuntime) -> None:
