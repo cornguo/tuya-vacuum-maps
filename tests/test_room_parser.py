@@ -48,3 +48,14 @@ def test_rooms_after_one_with_vertices_are_parsed():
         (7, "Bedroom", 1),
         (9, "Hall", 0),
     ]
+
+
+def test_name_ends_at_nul_despite_junk_after_it():
+    """A name is cut at its NUL, even when the bytes after it aren't UTF-8."""
+    room = _room(5, "", [(1, 2)])
+    # Name length 3, then "1", NUL and a byte that isn't valid UTF-8
+    room = room[:26] + bytes([3, 0x31, 0x00, 0xA2]) + room[30:]
+
+    rooms = room_parser.parse_map_room_array((bytes([1, 1]) + room).hex())
+
+    assert [(room.id, room.name, room.vertex_num) for room in rooms] == [(5, "1", 1)]
