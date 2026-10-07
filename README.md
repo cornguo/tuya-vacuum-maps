@@ -66,7 +66,7 @@ follow_vacuum: true       # optional, start zoomed in on the vacuum
 follow_zoom: 3            # optional, zoom while following, 1 to 10
 ```
 
-Dragging the map stops following the vacuum. The card loads the map only when it changes, using the camera's `image_id` attribute, and finds the vacuum from its `vacuum_position` attribute (fractions of the image's width and height). It comes in the same file as the rooms card, so it needs no other resource.
+Dragging or zooming the map while following pauses it to look around, and the map goes back to following the vacuum a few seconds after the last touch; the follow button shows an outline while paused, and tapping it follows again straight away. The card loads the map only when it changes, using the camera's `image_id` attribute, and finds the vacuum from its `vacuum_position` attribute (fractions of the image's width and height). It comes in the same file as the rooms card, so it needs no other resource.
 
 ## Cleaning Rooms
 

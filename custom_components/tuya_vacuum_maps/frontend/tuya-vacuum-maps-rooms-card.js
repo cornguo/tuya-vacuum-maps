@@ -19,6 +19,8 @@
 //   follow_vacuum: true       # optional, start zoomed in on the vacuum
 //   follow_zoom: 3            # optional, zoom while following, 1 to 10
 //
+// Dragging or zooming while following looks around freely for a moment; a few
+// seconds after the last touch the map goes back to following the vacuum.
 // Double tap or double click the map to see all of it again.
 
 const PLATFORM = "tuya_vacuum_maps";
@@ -279,6 +281,8 @@ const DEFAULT_HEIGHT = "400px";
 const TAP_DISTANCE = 6;
 // Two taps within this many milliseconds are a double tap
 const DOUBLE_TAP_MS = 300;
+// Following comes back this many milliseconds after the last drag or zoom
+const FOLLOW_RESUME_MS = 3000;
 
 const clampZoom = (zoom) => Math.min(MAX_ZOOM, Math.max(1, zoom));
 
@@ -304,6 +308,7 @@ class TuyaVacuumMapsMapCard extends HTMLElement {
 
   setConfig(config) {
     this._config = config || {};
+    this._unpause();
     this._follow = Boolean(this._config.follow_vacuum);
     this._zoom = this._follow ? this._followZoom() : 1;
     this._build();
@@ -320,6 +325,7 @@ class TuyaVacuumMapsMapCard extends HTMLElement {
 
   disconnectedCallback() {
     this._resizeObserver.disconnect();
+    this._unpause();
   }
 
   getCardSize() {
@@ -413,8 +419,9 @@ class TuyaVacuumMapsMapCard extends HTMLElement {
     controls.className = "controls";
     // Taps on the buttons don't drag the map
     controls.addEventListener("pointerdown", (event) => event.stopPropagation());
+    // While following is paused, a tap follows again straight away
     this._followButton = this._button("mdi:crosshairs-gps", () =>
-      this._setFollow(!this._follow)
+      this._setFollow(!this._following())
     );
     this._fitButton = this._button("mdi:fit-to-screen-outline", () =>
       this._fit()
@@ -451,7 +458,7 @@ class TuyaVacuumMapsMapCard extends HTMLElement {
     if (!hass || !this._viewport) return;
     this._followButton.title = translate(hass, "follow");
     this._fitButton.title = translate(hass, "fit");
-    this._followButton.classList.toggle("on", this._follow);
+    this._showFollow();
 
     const cameraId = this._cameraId();
     const state = cameraId && hass.states[cameraId];
@@ -475,7 +482,7 @@ class TuyaVacuumMapsMapCard extends HTMLElement {
       `${picture}${separator}v=${state.attributes.image_id ?? ""}`
     );
     if (src === this._src) {
-      if (this._follow) this._centerOnVacuum(true);
+      if (this._following()) this._centerOnVacuum(true);
       return;
     }
     this._src = src;
@@ -491,7 +498,7 @@ class TuyaVacuumMapsMapCard extends HTMLElement {
       this._map.style.width = `${size.width}px`;
       this._map.style.height = `${size.height}px`;
       if (resized) this._layout(false);
-      else if (this._follow) this._centerOnVacuum(true);
+      else if (this._following()) this._centerOnVacuum(true);
     };
     loader.src = src;
   }
@@ -507,7 +514,7 @@ class TuyaVacuumMapsMapCard extends HTMLElement {
 
   // Place the map after the box or the image changed size
   _layout(animate) {
-    if (this._follow) this._centerOnVacuum(animate);
+    if (this._following()) this._centerOnVacuum(animate);
     else this._show(animate);
   }
 
@@ -550,9 +557,48 @@ class TuyaVacuumMapsMapCard extends HTMLElement {
     this._show(animate);
   }
 
+  // Following the vacuum, and not paused while the user looks around
+  _following() {
+    return this._follow && !this._paused;
+  }
+
+  _showFollow() {
+    this._followButton.classList.toggle("on", this._following());
+    this._followButton.classList.toggle("paused", this._follow && this._paused);
+  }
+
+  // A drag or zoom while following pauses it, until a few seconds after the
+  // last one
+  _pauseFollow() {
+    if (!this._follow) return;
+    clearTimeout(this._resumeTimer);
+    this._paused = true;
+    this._showFollow();
+    this._resumeTimer = setTimeout(() => this._resumeFollow(), FOLLOW_RESUME_MS);
+  }
+
+  _resumeFollow() {
+    // Wait while a finger still holds the map
+    if (this._pointers.size > 0) {
+      this._resumeTimer = setTimeout(
+        () => this._resumeFollow(),
+        FOLLOW_RESUME_MS
+      );
+      return;
+    }
+    this._setFollow(true);
+  }
+
+  _unpause() {
+    clearTimeout(this._resumeTimer);
+    this._resumeTimer = undefined;
+    this._paused = false;
+  }
+
   _setFollow(follow) {
+    this._unpause();
     this._follow = follow;
-    this._followButton.classList.toggle("on", follow);
+    this._showFollow();
     if (follow) {
       this._zoom = this._followZoom();
       this._centerOnVacuum(true);
@@ -568,7 +614,7 @@ class TuyaVacuumMapsMapCard extends HTMLElement {
   // Zoom keeping the point (x, y) of the box still, or the vacuum centred
   _zoomAt(x, y, zoom) {
     zoom = clampZoom(zoom);
-    if (this._follow) {
+    if (this._following()) {
       this._zoom = zoom;
       this._centerOnVacuum(false);
       return;
@@ -627,20 +673,19 @@ class TuyaVacuumMapsMapCard extends HTMLElement {
           TAP_DISTANCE
       ) {
         this._moved = true;
-        // Dragging the map stops following the vacuum
-        if (this._follow) this._setFollow(false);
       }
       if (this._moved) {
+        // Dragging the map pauses following the vacuum
+        this._pauseFollow();
         this._x += point.x - last.x;
         this._y += point.y - last.y;
         this._show(false);
       }
     } else if (this._pointers.size === 2 && this._lastPinch) {
       const pinch = this._pinch();
-      if (!this._follow) {
-        this._x += pinch.x - this._lastPinch.x;
-        this._y += pinch.y - this._lastPinch.y;
-      }
+      this._pauseFollow();
+      this._x += pinch.x - this._lastPinch.x;
+      this._y += pinch.y - this._lastPinch.y;
       this._zoomAt(
         pinch.x,
         pinch.y,
@@ -668,6 +713,7 @@ class TuyaVacuumMapsMapCard extends HTMLElement {
   _wheel(event) {
     event.preventDefault();
     const point = this._point(event);
+    this._pauseFollow();
     this._zoomAt(point.x, point.y, this._zoom * Math.exp(-event.deltaY * 0.002));
   }
 }
@@ -697,6 +743,7 @@ TuyaVacuumMapsMapCard.styles = `
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); --mdc-icon-size: 20px;
   }
   .controls button.on { background: var(--primary-color); color: var(--text-primary-color); }
+  .controls button.paused { color: var(--primary-color); box-shadow: inset 0 0 0 2px var(--primary-color); }
 `;
 
 const CARDS = [
