@@ -3,6 +3,7 @@
 tuya-vacuum's VacuumMap.to_image draws the dock marker at the map origin, which
 is only where the map's coordinates start. The layout header has the dock's
 position (pile_x, pile_y), so render_map draws the same map with the dock there.
+The layout itself is drawn by layout_image, which doesn't print to the log.
 Path width, colours and marker sizes are read from tuya-vacuum, so changes made
 to them (see path_style.py) still apply.
 """
@@ -18,6 +19,7 @@ from tuya_vacuum.vacuum_map import VacuumMap
 import tuya_vacuum.vacuum_map_path as path_style
 
 from .current_room import current_room
+from .layout_image import layout_image
 from .room_labels import (
     FONT_FILE_NAME,
     draw_room_labels,
@@ -132,7 +134,7 @@ def render_map(vacuum_map) -> Image.Image:
     layout = vacuum_map.layout
     scale = path_style.PATH_SCALE
 
-    image = layout.to_image()
+    image = layout_image(layout)
     image = image.resize(
         (image.width * scale, image.height * scale), resample=Image.Resampling.NEAREST
     )

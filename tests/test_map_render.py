@@ -21,7 +21,8 @@ virtual_areas = importlib.import_module(f"{_PACKAGE}.virtual_areas")
 
 GREEN = (0, 128, 0)
 BLUE = (0, 0, 255)
-BACKGROUND = (50, 50, 50)
+# Colour of a background pixel (255) in the layout
+BACKGROUND = (0, 110, 230)
 
 
 def _map(path_points: list[dict]) -> SimpleNamespace:
@@ -33,7 +34,8 @@ def _map(path_points: list[dict]) -> SimpleNamespace:
         origin_y=10,
         pile_x=30,
         pile_y=30,
-        to_image=lambda: Image.new("RGB", (40, 40), BACKGROUND),
+        rooms=[],
+        _map_data_array=bytes([255] * 40 * 40),
     )
     return SimpleNamespace(layout=layout, path=SimpleNamespace(_path_data=path_points))
 
