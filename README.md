@@ -26,6 +26,7 @@ This is a fork of [jaidenlabelle/tuya-vacuum-maps](https://github.com/jaidenlabe
 - **Maps with several rooms failed to render**: the room parser in `tuya-vacuum` didn't skip each room's outline points, so every room after the first was read from the wrong place (`UnicodeDecodeError`).
 - **Maps failed with "'utf-8' codec can't decode byte"**: some vacuums leave junk bytes after the end of a room name (e.g. `1`, NUL, `0xa2`), which `tuya-vacuum` tried to decode as part of the name. Names now end at the first NUL.
 - **"Unknown map type: 3" warning**: no longer logged for map types 2 (incremental path) and 3 (planning path), which Tuya documents but aren't needed for the map.
+- **"Unknown pixel type: None" flooding the log**: `tuya-vacuum` printed this once for every map pixel of a type it doesn't know (e.g. `0xf4`), thousands of lines per update. The layout is now drawn without printing, with the same colours (unknown pixels stay dark gray), and faster.
 - **Blocking calls in the event loop**: fetching and rendering the map now run outside Home Assistant's event loop, fixing the "Detected blocking call ... inside the event loop" warning.
 - **No unique ID**: the map camera now has a unique ID and a device, so it can be managed from the UI. If the vacuum is set up in Tuya Local, the camera appears on that device's page.
 - **Entity ID got a `_2` suffix**: "Recreate entity ID" no longer adds `_2`. When the vacuum is set up in Tuya Local, the camera's entity ID is based on the vacuum's, e.g. `vacuum.robot` → `camera.robot_map`.
